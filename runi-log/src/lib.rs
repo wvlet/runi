@@ -1,3 +1,6 @@
+mod format;
+
+use format::UniFormatter;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 pub use tracing::{debug, error, info, trace, warn};
@@ -7,7 +10,8 @@ pub use tracing::Span;
 /// Initialize logging with sensible defaults.
 ///
 /// - Log level from `RUNI_LOG` env var (default: `info`)
-/// - Pretty output for terminals, compact otherwise
+/// - Uni-style format: `timestamp LEVEL [target] message - (file:line)`
+/// - Colored output for terminals, JSON for non-terminals
 pub fn init() {
     init_with_env("RUNI_LOG");
 }
@@ -22,12 +26,21 @@ pub fn init_with_env(env_var: &str) {
     if is_terminal {
         tracing_subscriber::registry()
             .with(filter)
-            .with(fmt::layer().with_target(true).with_thread_ids(false))
+            .with(
+                fmt::layer()
+                    .event_format(UniFormatter::new(true)),
+            )
             .init();
     } else {
         tracing_subscriber::registry()
             .with(filter)
-            .with(fmt::layer().json().with_target(true))
+            .with(
+                fmt::layer()
+                    .json()
+                    .with_target(true)
+                    .with_file(true)
+                    .with_line_number(true),
+            )
             .init();
     }
 }
@@ -37,7 +50,10 @@ pub fn init_with_level(level: &str) {
     let filter = EnvFilter::new(level);
     tracing_subscriber::registry()
         .with(filter)
-        .with(fmt::layer().with_target(true))
+        .with(
+            fmt::layer()
+                .event_format(UniFormatter::new(true)),
+        )
         .init();
 }
 
@@ -47,7 +63,6 @@ mod tests {
 
     #[test]
     fn log_macros_compile() {
-        // Verify macros are usable without init (they're no-ops without a subscriber)
         trace!("trace message");
         debug!("debug message");
         info!("info message");

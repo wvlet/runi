@@ -8,3 +8,6 @@ license = "Apache-2.0"
 [dependencies]
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-core = "0.1"
+nu-ansi-term = "0.50"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }

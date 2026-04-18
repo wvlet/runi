@@ -1,0 +1,10 @@
+[package]
+name = "runi-log"
+version = "0.1.0"
+edition = "2024"
+description = "Structured logging for the Runi library collection"
+license = "Apache-2.0"
+
+[dependencies]
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }

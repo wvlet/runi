@@ -1,0 +1,15 @@
+[package]
+name = "runi-test"
+version = "0.1.0"
+edition = "2024"
+description = "Test utilities for the Runi library collection"
+license = "Apache-2.0"
+
+[dependencies]
+rstest = "0.25"
+pretty_assertions = "1"
+proptest = { version = "1", optional = true }
+
+[features]
+default = []
+property = ["proptest"]

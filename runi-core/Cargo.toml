@@ -7,3 +7,7 @@ license = "Apache-2.0"
 
 [dependencies]
 thiserror = "2"
+
+[dev-dependencies]
+runi-test = { path = "../runi-test" }
+rstest = "0.25"

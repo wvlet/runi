@@ -1,5 +1,5 @@
 [workspace]
 members = [
-    "runi-core",
+    "runi-core", "runi-test",
 ]
 resolver = "2"

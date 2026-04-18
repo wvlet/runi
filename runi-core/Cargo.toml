@@ -1,0 +1,9 @@
+[package]
+name = "runi-core"
+version = "0.1.0"
+edition = "2024"
+description = "Core types for the Runi library collection"
+license = "Apache-2.0"
+
+[dependencies]
+thiserror = "2"

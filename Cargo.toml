@@ -1,0 +1,5 @@
+[workspace]
+members = [
+    "runi-core",
+]
+resolver = "2"

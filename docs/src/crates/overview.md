@@ -8,7 +8,7 @@ its own entry on [docs.rs](https://docs.rs).
 | ----------------------------------------- | ----------------- | ----------------------------- |
 | [`runi-core`](./runi-core.md)             | Foundation types  | Every other Runi crate        |
 | [`runi-log`](./runi-log.md)               | Logging           | Application / service authors |
-| [`runi-cli`](./runi-cli.md)               | Terminal styling  | CLI authors                   |
+| [`runi-cli`](./runi-cli.md)               | CLI parser + terminal styling | CLI authors       |
 | [`runi-test`](./runi-test.md)             | Test utilities    | Anyone writing tests          |
 
 ## How they fit together

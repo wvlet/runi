@@ -65,6 +65,10 @@ fn derive_struct(input: &DeriveInput, data: &DataStruct) -> Result<TokenStream> 
     for field in fields {
         collected.push(FieldSpec::from_field(field)?);
     }
+    // Duplicate short/long aliases would map to the same canonical key in
+    // ParseResult, silently routing two struct fields to the same value.
+    // Catch this at derive time so the error points at the attribute.
+    check_unique_option_aliases(&collected)?;
 
     Ok(emit_struct_impl(
         input,
@@ -148,6 +152,9 @@ fn derive_enum(input: &DeriveInput, data: &DataEnum) -> Result<TokenStream> {
     for variant in &data.variants {
         variants.push(VariantSpec::from_variant(variant)?);
     }
+    // Colliding subcommand names would trip LauncherWithSubs::command()'s
+    // runtime assert during startup. Reject at expansion time.
+    check_unique_variant_names(&variants)?;
 
     let registration_body = variants.iter().map(|v| {
         let name_lit = &v.name;
@@ -597,6 +604,40 @@ fn first_generic_arg(ty: &Type) -> Option<Type> {
         }
     }
     None
+}
+
+fn check_unique_option_aliases(fields: &[FieldSpec]) -> Result<()> {
+    use std::collections::HashMap;
+    let mut seen: HashMap<String, proc_macro2::Span> = HashMap::new();
+    for field in fields {
+        if let FieldKind::Option { prefix } = &field.kind {
+            let (short, long) = split_prefix(&prefix.value());
+            for alias in [short, long].into_iter().flatten() {
+                if let Some(prev) = seen.insert(alias.clone(), prefix.span()) {
+                    let mut err =
+                        syn::Error::new(prefix.span(), format!("duplicate option alias: {alias}"));
+                    err.combine(syn::Error::new(prev, "previously declared here"));
+                    return Err(err);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn check_unique_variant_names(variants: &[VariantSpec]) -> Result<()> {
+    use std::collections::HashMap;
+    let mut seen: HashMap<String, proc_macro2::Span> = HashMap::new();
+    for v in variants {
+        let name = v.name.value();
+        if let Some(prev) = seen.insert(name.clone(), v.name.span()) {
+            let mut err =
+                syn::Error::new(v.name.span(), format!("duplicate subcommand name: {name}"));
+            err.combine(syn::Error::new(prev, "previously declared here"));
+            return Err(err);
+        }
+    }
+    Ok(())
 }
 
 /// Mirror of schema::split_prefix — parse `"-v,--verbose"` into (short, long).

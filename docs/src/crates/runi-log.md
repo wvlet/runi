@@ -51,5 +51,5 @@ Use `init_with_env("MY_APP_LOG")` to change the env var name, or
 `init()` detects whether stderr is a terminal:
 
 - **Terminal:** colored Uni-style output with file/line locations.
-- **Redirected / piped:** JSON with `target`, `file`, and `line_number`
-  fields, suitable for log aggregation pipelines.
+- **Redirected / piped:** JSON with `target`, `filename`, and
+  `line_number` fields, suitable for log aggregation pipelines.

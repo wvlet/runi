@@ -4,6 +4,8 @@
 
 **Runi** is a curated Rust foundation library collection. Core value: provide essential utilities while keeping dependencies minimal. Prefer the standard library and small, well-maintained crates; reject additions that pull in heavy or duplicative dependency trees.
 
+Sister project: [wvlet/uni](https://github.com/wvlet/uni) is the Scala counterpart with the same philosophy — useful as a reference for module scope, naming, and API shape.
+
 ## Workspace
 
 Crates (unified version via `workspace.package.version`):

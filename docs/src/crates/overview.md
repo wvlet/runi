@@ -1,7 +1,8 @@
 # Crates Overview
 
-Runi is a Cargo workspace with four crates. Each one is published
-independently and has its own entry on [docs.rs](https://docs.rs).
+Runi is a Cargo workspace with four crates. They share a single
+workspace version (see [Versioning](#versioning) below) and each has
+its own entry on [docs.rs](https://docs.rs).
 
 | Crate                                     | Role              | Typical user                  |
 | ----------------------------------------- | ----------------- | ----------------------------- |
@@ -22,5 +23,15 @@ independently and has its own entry on [docs.rs](https://docs.rs).
 
 ## Versioning
 
-All crates currently track `0.1.x` and are released together. Breaking
-changes are called out in each crate's `CHANGELOG.md` (coming soon).
+Runi uses **unified workspace versioning** — every crate shares the same
+version and they are released as a set. The version is defined once in
+the workspace `Cargo.toml` (`[workspace.package]`) and inherited by each
+member. Intra-workspace dependencies live in `[workspace.dependencies]`.
+
+All crates currently track `0.1.x`. When the workspace bumps, every
+crate bumps together — pick a single version for all four `runi-*`
+entries in your `Cargo.toml`. Breaking changes will be called out in
+each crate's `CHANGELOG.md` (coming soon).
+
+Independent per-crate versioning can be adopted later if release
+cadences diverge; for now the set moves as one.

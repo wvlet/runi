@@ -1,7 +1,8 @@
 # Getting Started
 
 Runi is published as several crates on [crates.io](https://crates.io).
-Add only the ones you need.
+Add only the ones you need — but because all `runi-*` crates share a
+single workspace version, use the **same version** for every entry.
 
 ## Install
 
@@ -15,6 +16,11 @@ runi-cli  = "0.1"
 [dev-dependencies]
 runi-test = "0.1"
 ```
+
+If your own project is a workspace and you pull in more than one of the
+`runi-*` crates, centralize the pin in `[workspace.dependencies]` and
+let members inherit with `runi-core = { workspace = true }`. This keeps
+all four crates in lockstep on upgrades.
 
 ## A minimal example
 

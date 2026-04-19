@@ -3,7 +3,11 @@ name = "runi-cli"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
 description = "Terminal styling and CLI utilities for the Runi library collection"
+keywords = ["cli", "terminal", "ansi", "color", "tty"]
+categories = ["command-line-interface", "command-line-utilities"]
 
 [dependencies]
 nu-ansi-term.workspace = true

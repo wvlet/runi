@@ -3,7 +3,11 @@ name = "runi-test"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
 description = "Test utilities for the Runi library collection"
+keywords = ["testing", "test-utilities", "rstest", "proptest"]
+categories = ["development-tools::testing"]
 
 [dependencies]
 rstest.workspace = true

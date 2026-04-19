@@ -272,9 +272,17 @@ fn consume_option(
             v.to_string()
         } else {
             i += 1;
-            args.get(i)
-                .ok_or_else(|| Error::MissingValue(token.clone()))?
-                .clone()
+            let raw = args
+                .get(i)
+                .ok_or_else(|| Error::MissingValue(token.clone()))?;
+            // Reject `--output --verbose` — the next token is clearly
+            // another option, so the value is missing. Typed negatives
+            // like `--offset -1` still work because `-1` is not
+            // classified as an option by `looks_like_option`.
+            if looks_like_option(raw) || raw == "-h" || raw == "--help" {
+                return Err(Error::MissingValue(token.clone()));
+            }
+            raw.clone()
         };
         result.values.entry(key).or_default().push(value);
     } else {
@@ -557,6 +565,22 @@ mod tests {
         let schema = CommandSchema::new("app", "");
         let err = OptionParser::parse(&schema, &args(&["--nope"])).unwrap_err();
         assert!(matches!(err, Error::UnknownOption(ref s) if s == "--nope"));
+    }
+
+    #[test]
+    fn option_followed_by_another_option_is_missing_value() {
+        let schema = CommandSchema::new("app", "")
+            .option("--output", "")
+            .flag("-v,--verbose", "");
+        let err = OptionParser::parse(&schema, &args(&["--output", "--verbose"])).unwrap_err();
+        assert!(matches!(err, Error::MissingValue(_)));
+    }
+
+    #[test]
+    fn option_accepts_negative_number_as_value() {
+        let schema = CommandSchema::new("app", "").option("--offset", "");
+        let r = OptionParser::parse(&schema, &args(&["--offset", "-1"])).unwrap();
+        assert_eq!(r.require::<i32>("--offset").unwrap(), -1);
     }
 
     #[test]

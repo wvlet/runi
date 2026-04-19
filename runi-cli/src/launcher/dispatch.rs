@@ -131,9 +131,20 @@ impl<G: Command + 'static> LauncherWithSubs<G> {
 
     fn combined_schema(&self) -> CommandSchema {
         let mut schema = G::schema();
-        schema
-            .subcommands
-            .extend(self.subs.iter().map(|e| e.schema.clone()));
+        for entry in &self.subs {
+            // If G::schema() already declared a subcommand with this name,
+            // parsing would match the stub first and never reach the
+            // registered handler. That's a programmer error — fail loudly.
+            assert!(
+                !schema
+                    .subcommands
+                    .iter()
+                    .any(|s| s.name == entry.schema.name),
+                "subcommand '{}' is declared in both G::schema() and .command()",
+                entry.schema.name,
+            );
+            schema.subcommands.push(entry.schema.clone());
+        }
         schema
     }
 
@@ -499,6 +510,33 @@ mod tests {
         let _ = Launcher::<GitApp>::of()
             .command::<CloneCmd>("clone")
             .command::<CloneCmd>("clone");
+    }
+
+    struct AppWithStubSub;
+    impl Command for AppWithStubSub {
+        fn schema() -> CommandSchema {
+            CommandSchema::new("app", "").subcommand(CommandSchema::new("clone", "stub"))
+        }
+        fn from_parsed(_: &ParseResult) -> Result<Self> {
+            Ok(Self)
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "declared in both G::schema()")]
+    fn subcommand_conflict_with_schema_declared_sub_panics() {
+        // combined_schema runs at parse time. We invoke it explicitly
+        // because just constructing the Launcher doesn't trigger it.
+        let launcher = Launcher::<AppWithStubSub>::of().command::<CloneCmd>("clone");
+        let _ = launcher.run_args(&["clone".into()]);
+    }
+
+    // Dummy SubCommandOf<AppWithStubSub> impl so the Launcher registration
+    // compiles; unused because the conflict panics first.
+    impl SubCommandOf<AppWithStubSub> for CloneCmd {
+        fn run(&self, _: &AppWithStubSub) -> Result<()> {
+            Ok(())
+        }
     }
 
     #[test]

@@ -1,16 +1,20 @@
-use crate::tint::{Tint, supports_color};
+use crate::tint::{Tint, supports_color, supports_color_stdout};
 
 use super::schema::{CLArgument, CLOption, CommandSchema};
 
-/// Format help output for a schema. The result is already ANSI-styled when
-/// `supports_color()` is true, and plain when writing to a non-TTY.
+/// Format help output for a schema. The result is ANSI-styled when the
+/// destination stream is a TTY and plain otherwise.
 pub struct HelpPrinter;
 
 impl HelpPrinter {
-    /// Produce help text for a schema. Prefer [`HelpPrinter::print`] in
+    /// Produce help text sized for stderr (color when stderr is a TTY).
+    /// Prefer [`HelpPrinter::print`] / [`HelpPrinter::print_error`] in
     /// production; this method is primarily here for tests.
     pub fn format(schema: &CommandSchema) -> String {
-        let color = supports_color();
+        Self::format_with_color(schema, supports_color())
+    }
+
+    fn format_with_color(schema: &CommandSchema, color: bool) -> String {
         let mut out = String::new();
 
         if !schema.description.is_empty() {
@@ -53,15 +57,19 @@ impl HelpPrinter {
     }
 
     /// Print help text to stdout. Use this for user-requested help
-    /// (`--help`) so output can be piped or redirected normally.
+    /// (`--help`) so output can be piped or redirected normally. Color is
+    /// keyed off stdout, so redirected stdout is always plain.
     pub fn print(schema: &CommandSchema) {
-        print!("{}", Self::format(schema));
+        print!(
+            "{}",
+            Self::format_with_color(schema, supports_color_stdout())
+        );
     }
 
     /// Print help text to stderr. Use this alongside an error message so
     /// both are grouped on the same stream.
     pub fn print_error(schema: &CommandSchema) {
-        eprint!("{}", Self::format(schema));
+        eprint!("{}", Self::format_with_color(schema, supports_color()));
     }
 }
 

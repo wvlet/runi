@@ -148,6 +148,12 @@ pub fn supports_color() -> bool {
     std::io::IsTerminal::is_terminal(&std::io::stderr())
 }
 
+/// Check if stdout supports color output. Use this when writing to stdout so
+/// color isn't emitted when the output is being redirected.
+pub fn supports_color_stdout() -> bool {
+    std::io::IsTerminal::is_terminal(&std::io::stdout())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

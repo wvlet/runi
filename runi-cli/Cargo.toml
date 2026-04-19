@@ -7,3 +7,6 @@ description = "Terminal styling and CLI utilities for the Runi library collectio
 
 [dependencies]
 nu-ansi-term.workspace = true
+
+[dev-dependencies]
+runi-test.workspace = true

@@ -101,8 +101,16 @@ impl<G: Command + 'static> LauncherWithSubs<G> {
     {
         let mut schema = S::schema();
         schema.name = name.to_string();
-        let runner: Runner<G> = Box::new(|global, parsed| {
-            let sub = S::from_parsed(parsed)?;
+        let name_owned = schema.name.clone();
+        let runner: Runner<G> = Box::new(move |global, parsed| {
+            // Wrap parse-origin failures (e.g., missing required argument)
+            // with subcommand context so the launcher prints help for the
+            // right command. The subcommand's own runtime errors pass
+            // through unwrapped and are treated as runtime failures.
+            let sub = S::from_parsed(parsed).map_err(|e| Error::InSubcommand {
+                path: vec![name_owned.clone()],
+                source: Box::new(e),
+            })?;
             sub.run(global)
         });
         self.subs.push(Entry { schema, runner });
@@ -140,15 +148,21 @@ impl<G: Command + 'static> LauncherWithSubs<G> {
     }
 
     /// Parse `std::env::args()`, dispatch to the matching subcommand, and
-    /// exit. Prints help on `--help` and error messages to stderr before
-    /// exiting. When a subcommand parse fails, prints help for that
-    /// subcommand rather than for the root command.
+    /// exit. Prints help on `--help` and parse error messages to stderr
+    /// before exiting. When the subcommand's own `run` returns an error,
+    /// that is treated as a runtime failure (exit code 1) without printing
+    /// help, so legitimate runtime errors aren't reported as bad CLI
+    /// syntax.
     pub fn execute(self) -> ! {
         let args = env_args();
         let schema = self.combined_schema();
         let code = match self.run_args(&args) {
             Ok(()) => 0,
-            Err(err) => report_error(err, &schema),
+            Err(e) if e.is_parse_error() => report_error(e, &schema),
+            Err(e) => {
+                eprintln!("error: {e}");
+                1
+            }
         };
         process::exit(code);
     }
@@ -363,6 +377,70 @@ mod tests {
         fn run(&self) -> Result<()> {
             let _ = self.n;
             Ok(())
+        }
+    }
+
+    // Subcommand whose run() returns a runtime error.
+    struct FailingCmd;
+    impl Command for FailingCmd {
+        fn schema() -> CommandSchema {
+            CommandSchema::new("fail", "always fails")
+        }
+        fn from_parsed(_: &ParseResult) -> Result<Self> {
+            Ok(Self)
+        }
+    }
+    impl SubCommandOf<GitApp> for FailingCmd {
+        fn run(&self, _: &GitApp) -> Result<()> {
+            Err(Error::custom("something went wrong"))
+        }
+    }
+
+    #[test]
+    fn runtime_error_is_not_a_parse_error() {
+        let launcher = Launcher::<GitApp>::of().command::<FailingCmd>("fail");
+        let err = launcher.run_args(&["fail".into()]).unwrap_err();
+        assert!(!err.is_parse_error());
+        assert!(matches!(err, Error::Custom(_)));
+    }
+
+    // Subcommand that requires an argument — exercises parse-error wrapping
+    // from inside the runner (S::from_parsed path).
+    #[derive(Debug)]
+    struct Needy {
+        _name: String,
+    }
+    impl Command for Needy {
+        fn schema() -> CommandSchema {
+            CommandSchema::new("needy", "").argument("name", "required")
+        }
+        fn from_parsed(p: &ParseResult) -> Result<Self> {
+            Ok(Self {
+                _name: p.require::<String>("name")?,
+            })
+        }
+    }
+    impl SubCommandOf<GitApp> for Needy {
+        fn run(&self, _: &GitApp) -> Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn subcommand_from_parsed_error_wrapped_with_context() {
+        // The parser accepts `needy` with no further args (the positional is
+        // declared on the subcommand schema but nothing violates parse shape
+        // there), so the MissingArgument surfaces from the runner's call to
+        // from_parsed and must be wrapped with the subcommand path for the
+        // launcher to pick the right help schema.
+        let launcher = Launcher::<GitApp>::of().command::<Needy>("needy");
+        let err = launcher.run_args(&["needy".into()]).unwrap_err();
+        match err {
+            Error::InSubcommand { path, source } => {
+                assert_eq!(path, vec!["needy".to_string()]);
+                assert!(matches!(*source, Error::MissingArgument(_)));
+            }
+            other => panic!("expected InSubcommand, got {other:?}"),
         }
     }
 

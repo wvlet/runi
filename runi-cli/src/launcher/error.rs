@@ -48,6 +48,25 @@ impl Error {
     pub fn custom(message: impl Into<String>) -> Self {
         Self::Custom(message.into())
     }
+
+    /// Whether this error originated from argument parsing (as opposed to a
+    /// user command's runtime logic). The launcher uses this to decide
+    /// whether to print help text alongside the error message.
+    pub fn is_parse_error(&self) -> bool {
+        matches!(
+            self,
+            Error::UnknownOption(_)
+                | Error::UnknownSubcommand { .. }
+                | Error::MissingValue(_)
+                | Error::UnexpectedValue(_)
+                | Error::MissingArgument(_)
+                | Error::MissingSubcommand { .. }
+                | Error::ExtraArgument(_)
+                | Error::InvalidValue { .. }
+                | Error::HelpRequested
+                | Error::InSubcommand { .. }
+        )
+    }
 }
 
 impl fmt::Display for Error {

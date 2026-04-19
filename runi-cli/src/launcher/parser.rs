@@ -132,19 +132,18 @@ impl OptionParser {
                 return Err(Error::HelpRequested);
             }
 
-            // Long option: --name or --name=value
-            if let Some(rest) = arg.strip_prefix("--") {
-                let (name, inline) = split_eq(rest);
-                let opt = schema
-                    .find_option_long(name)
-                    .ok_or_else(|| Error::UnknownOption(arg.clone()))?;
-                i = consume_option(opt, args, i, inline, &mut result)?;
-                continue;
-            }
-
-            // Short option: -x (possibly with attached value later; simple form
-            // "-x value" only in Phase 1, no clustering).
-            if arg.len() > 1 && arg.starts_with('-') {
+            // Tokens like `-1`, `-.5`, or `-/path` are values, not options.
+            // A dash-prefixed token is only treated as an option when it
+            // starts with a letter (short `-x`) or a word (long `--name`).
+            if looks_like_option(arg) {
+                if let Some(rest) = arg.strip_prefix("--") {
+                    let (name, inline) = split_eq(rest);
+                    let opt = schema
+                        .find_option_long(name)
+                        .ok_or_else(|| Error::UnknownOption(arg.clone()))?;
+                    i = consume_option(opt, args, i, inline, &mut result)?;
+                    continue;
+                }
                 let name = &arg[1..];
                 let opt = schema
                     .find_option_short(name)
@@ -226,6 +225,26 @@ fn split_eq(s: &str) -> (&str, Option<&str>) {
         Some(idx) => (&s[..idx], Some(&s[idx + 1..])),
         None => (s, None),
     }
+}
+
+fn looks_like_option(arg: &str) -> bool {
+    if !arg.starts_with('-') || arg.len() < 2 || arg == "--" {
+        return false;
+    }
+    if let Some(rest) = arg.strip_prefix("--") {
+        // Long option: --<word>. Leading digit means it's a value like `--1`
+        // (unusual), not an option.
+        return rest
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_alphabetic())
+            .unwrap_or(false);
+    }
+    // Short option: -<letter>. Digit / dot / slash → value.
+    arg.chars()
+        .nth(1)
+        .map(|c| c.is_ascii_alphabetic())
+        .unwrap_or(false)
 }
 
 fn consume_option(
@@ -448,6 +467,27 @@ mod tests {
         assert_eq!(r.get::<String>("out").unwrap().as_deref(), Some("out.txt"));
         let (name, _) = r.subcommand().unwrap();
         assert_eq!(name, "run");
+    }
+
+    #[test]
+    fn dash_prefixed_numeric_positional_parses() {
+        let schema = CommandSchema::new("app", "").argument("offset", "signed offset");
+        let r = OptionParser::parse(&schema, &args(&["-1"])).unwrap();
+        assert_eq!(r.require::<i32>("offset").unwrap(), -1);
+    }
+
+    #[test]
+    fn dash_prefixed_decimal_positional_parses() {
+        let schema = CommandSchema::new("app", "").argument("n", "number");
+        let r = OptionParser::parse(&schema, &args(&["-.5"])).unwrap();
+        assert!((r.require::<f64>("n").unwrap() + 0.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn dash_prefixed_word_still_parsed_as_option() {
+        let schema = CommandSchema::new("app", "").argument("x", "");
+        let err = OptionParser::parse(&schema, &args(&["--bad"])).unwrap_err();
+        assert!(matches!(err, Error::UnknownOption(_)));
     }
 
     #[test]

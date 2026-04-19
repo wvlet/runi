@@ -348,7 +348,7 @@ impl FieldSpec {
         let shape = classify_shape(&ty);
         let inner_ty = inner_type(&ty, &shape);
 
-        let kind = field_kind_from_attrs(&field.attrs)?;
+        let (kind, explicit_desc) = parse_field_attrs(&field.attrs)?;
 
         // Validation: `#[argument]` on a bool is meaningless.
         if matches!(kind, FieldKind::Argument) && matches!(shape, FieldShape::Flag) {
@@ -366,7 +366,6 @@ impl FieldSpec {
             ));
         }
 
-        let explicit_desc = field_description(&field.attrs)?;
         let doc = collect_doc(&field.attrs);
         let description = explicit_desc.or(doc).unwrap_or_default();
 
@@ -464,68 +463,36 @@ impl FieldSpec {
     }
 }
 
-fn field_kind_from_attrs(attrs: &[Attribute]) -> Result<FieldKind> {
-    let mut found: Option<FieldKind> = None;
-    for attr in attrs {
-        if attr.path().is_ident("option") {
-            if found.is_some() {
-                return Err(syn::Error::new_spanned(
-                    attr,
-                    "field has multiple #[option] / #[argument] attributes",
-                ));
-            }
-            // Parse `"prefix"` or `"prefix", description = "..."`.
-            let parser = |stream: syn::parse::ParseStream<'_>| -> Result<LitStr> {
-                let prefix: LitStr = stream.parse()?;
-                // Drain remaining trailing metadata; description is parsed
-                // separately in field_description().
-                while !stream.is_empty() {
-                    let _: proc_macro2::TokenTree = stream.parse()?;
-                }
-                Ok(prefix)
-            };
-            let prefix = attr.parse_args_with(parser)?;
-            // Validate at macro-expansion time so misconfigurations point
-            // at the attribute rather than panicking inside the generated
-            // `schema()` call or producing an unmatchable option at
-            // runtime.
-            validate_option_prefix(&prefix)?;
-            found = Some(FieldKind::Option { prefix });
-        } else if attr.path().is_ident("argument") {
-            if found.is_some() {
-                return Err(syn::Error::new_spanned(
-                    attr,
-                    "field has multiple #[option] / #[argument] attributes",
-                ));
-            }
-            found = Some(FieldKind::Argument);
-        }
-    }
-    found.ok_or_else(|| {
-        syn::Error::new_spanned(
-            attrs
-                .first()
-                .map(|a| a.to_token_stream())
-                .unwrap_or_else(|| quote! {}),
-            "field is missing #[option(\"...\")] or #[argument] — runi-cli cannot infer intent",
-        )
-    })
-}
-
-/// Optional `description = "..."` inside `#[option(...)]` or `#[argument(...)]`.
-fn field_description(attrs: &[Attribute]) -> Result<Option<String>> {
+/// Parse `#[option("...", description = "...")]` or `#[argument(description
+/// = "...")]` on a field. Returns the kind (option with prefix, or
+/// argument) along with an explicit description if the attribute provided
+/// one. Walks the attribute list once — both the kind and the description
+/// live inside the same attribute, so a single pass is enough.
+fn parse_field_attrs(attrs: &[Attribute]) -> Result<(FieldKind, Option<String>)> {
+    let mut found: Option<(FieldKind, Option<String>)> = None;
     for attr in attrs {
         let is_option = attr.path().is_ident("option");
         let is_argument = attr.path().is_ident("argument");
         if !is_option && !is_argument {
             continue;
         }
-        if let Meta::List(list) = &attr.meta {
-            let parser = |stream: syn::parse::ParseStream<'_>| -> Result<Option<String>> {
+        if found.is_some() {
+            return Err(syn::Error::new_spanned(
+                attr,
+                "field has multiple #[option] / #[argument] attributes",
+            ));
+        }
+
+        // Both forms share the same body shape: an optional leading
+        // string literal (the option prefix, only for `#[option]`)
+        // followed by zero or more `key = "value"` pairs. Only
+        // `description` is recognized today.
+        let parser =
+            |stream: syn::parse::ParseStream<'_>| -> Result<(Option<LitStr>, Option<String>)> {
+                let mut prefix: Option<LitStr> = None;
                 let mut description: Option<String> = None;
-                // Optional leading string literal (the option prefix).
                 if stream.peek(LitStr) {
-                    let _: LitStr = stream.parse()?;
+                    prefix = Some(stream.parse()?);
                     if stream.peek(syn::Token![,]) {
                         let _: syn::Token![,] = stream.parse()?;
                     }
@@ -541,15 +508,44 @@ fn field_description(attrs: &[Attribute]) -> Result<Option<String>> {
                         let _: syn::Token![,] = stream.parse()?;
                     }
                 }
-                Ok(description)
+                Ok((prefix, description))
             };
-            let found = list.parse_args_with(parser)?;
-            if found.is_some() {
-                return Ok(found);
+
+        let (prefix, description) = if matches!(attr.meta, Meta::List(_)) {
+            attr.parse_args_with(parser)?
+        } else {
+            (None, None)
+        };
+
+        if is_option {
+            let prefix = prefix.ok_or_else(|| {
+                syn::Error::new_spanned(attr, "#[option(...)] requires a prefix string literal")
+            })?;
+            // Validate at macro-expansion time so misconfigurations
+            // point at the attribute rather than panicking inside the
+            // generated `schema()` call or producing an unmatchable
+            // option at runtime.
+            validate_option_prefix(&prefix)?;
+            found = Some((FieldKind::Option { prefix }, description));
+        } else {
+            if prefix.is_some() {
+                return Err(syn::Error::new_spanned(
+                    attr,
+                    "#[argument] does not take a prefix string",
+                ));
             }
+            found = Some((FieldKind::Argument, description));
         }
     }
-    Ok(None)
+    found.ok_or_else(|| {
+        syn::Error::new_spanned(
+            attrs
+                .first()
+                .map(|a| a.to_token_stream())
+                .unwrap_or_else(|| quote! {}),
+            "field is missing #[option(\"...\")] or #[argument] — runi-cli cannot infer intent",
+        )
+    })
 }
 
 fn classify_shape(ty: &Type) -> FieldShape {

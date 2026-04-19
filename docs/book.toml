@@ -1,0 +1,21 @@
+[book]
+title = "Runi"
+description = "Rust infrastructure libraries: core, logging, CLI styling, and test utilities."
+authors = ["The Runi Authors"]
+language = "en"
+multilingual = false
+src = "src"
+
+[build]
+build-dir = "book"
+create-missing = false
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/wvlet/runi"
+edit-url-template = "https://github.com/wvlet/runi/edit/main/docs/{path}"
+
+[output.html.fold]
+enable = true
+level = 1

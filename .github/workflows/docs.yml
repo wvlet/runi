@@ -1,0 +1,97 @@
+name: Docs
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MDBOOK_VERSION: '0.4.52'
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            docs:
+              - '.github/workflows/docs.yml'
+              - 'docs/**'
+
+  build:
+    name: Build
+    needs: changes
+    if: ${{ needs.changes.outputs.docs == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cache mdBook binary
+        id: cache-mdbook
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/mdbook
+          key: mdbook-${{ runner.os }}-${{ env.MDBOOK_VERSION }}
+      - name: Install mdBook
+        if: steps.cache-mdbook.outputs.cache-hit != 'true'
+        run: cargo install mdbook --version ${{ env.MDBOOK_VERSION }} --locked
+      - name: Build book
+        run: mdbook build docs
+      - name: Test book
+        run: mdbook test docs
+      - name: Upload Pages artifact
+        if: >
+          (github.event_name == 'push' && github.ref == 'refs/heads/main')
+          || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/book
+
+  docs-required:
+    name: Docs Required
+    if: always()
+    needs: [changes, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify no job failed or was cancelled
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "::error::A required docs job failed"
+            exit 1
+          fi
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "::error::A required docs job was cancelled"
+            exit 1
+          fi
+
+  deploy:
+    name: Deploy
+    if: >
+      (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.docs == 'true')
+      || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    needs: [changes, build]
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

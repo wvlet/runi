@@ -166,9 +166,12 @@ fn derive_enum(input: &DeriveInput, data: &DataEnum) -> Result<TokenStream> {
             None => quote! { .command::<#inner>(#name_lit) },
         }
     });
+    // Use each variant's inner type span so a missing `Command` /
+    // `SubCommandOf<G>` impl points at the offending variant instead of
+    // the register_on signature.
     let parent_bounds = variants.iter().map(|v| {
         let inner = &v.inner_ty;
-        quote! {
+        quote_spanned! { inner.span() =>
             #inner: ::runi_cli::Command + ::runi_cli::SubCommandOf<__RegG> + 'static,
         }
     });
@@ -484,14 +487,9 @@ fn field_kind_from_attrs(attrs: &[Attribute]) -> Result<FieldKind> {
             let prefix = attr.parse_args_with(parser)?;
             // Validate at macro-expansion time so misconfigurations point
             // at the attribute rather than panicking inside the generated
-            // `schema()` call at runtime.
-            let (short, long) = split_prefix(&prefix.value());
-            if short.is_none() && long.is_none() {
-                return Err(syn::Error::new_spanned(
-                    &prefix,
-                    "option prefix must contain at least one of -<short> or --<long>",
-                ));
-            }
+            // `schema()` call or producing an unmatchable option at
+            // runtime.
+            validate_option_prefix(&prefix)?;
             found = Some(FieldKind::Option { prefix });
         } else if attr.path().is_ident("argument") {
             if found.is_some() {
@@ -619,6 +617,54 @@ fn first_generic_arg(ty: &Type) -> Option<Type> {
         }
     }
     None
+}
+
+/// Reject prefixes the parser can never match. A valid prefix is a
+/// comma-separated list where each part is either `-<alpha>…` (short)
+/// or `--<alpha>…` (long). Anything else (empty, wrong dash count,
+/// leading digit) becomes a runtime dead option, so surface it at
+/// derive time.
+fn validate_option_prefix(prefix: &LitStr) -> Result<()> {
+    let value = prefix.value();
+    let mut saw_any = false;
+    for part in value.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+        saw_any = true;
+        if let Some(rest) = part.strip_prefix("--") {
+            if rest.starts_with('-') {
+                return Err(syn::Error::new_spanned(
+                    prefix,
+                    format!("option prefix '{part}' has too many leading dashes"),
+                ));
+            }
+            let first = rest.chars().next();
+            if !first.map(|c| c.is_ascii_alphabetic()).unwrap_or(false) {
+                return Err(syn::Error::new_spanned(
+                    prefix,
+                    format!("long option '{part}' must start with a letter"),
+                ));
+            }
+        } else if let Some(rest) = part.strip_prefix('-') {
+            let first = rest.chars().next();
+            if !first.map(|c| c.is_ascii_alphabetic()).unwrap_or(false) {
+                return Err(syn::Error::new_spanned(
+                    prefix,
+                    format!("short option '{part}' must start with a letter"),
+                ));
+            }
+        } else {
+            return Err(syn::Error::new_spanned(
+                prefix,
+                format!("option prefix '{part}' must start with - or --"),
+            ));
+        }
+    }
+    if !saw_any {
+        return Err(syn::Error::new_spanned(
+            prefix,
+            "option prefix must contain at least one of -<short> or --<long>",
+        ));
+    }
+    Ok(())
 }
 
 fn check_unique_option_aliases(fields: &[FieldSpec]) -> Result<()> {

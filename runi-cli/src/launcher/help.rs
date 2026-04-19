@@ -59,17 +59,26 @@ impl HelpPrinter {
     /// Print help text to stdout. Use this for user-requested help
     /// (`--help`) so output can be piped or redirected normally. Color is
     /// keyed off stdout, so redirected stdout is always plain.
+    /// Flushes stdout before returning so callers that `process::exit`
+    /// immediately afterwards still see all bytes land.
     pub fn print(schema: &CommandSchema) {
-        print!(
-            "{}",
-            Self::format_with_color(schema, supports_color_stdout())
-        );
+        use std::io::Write;
+        let text = Self::format_with_color(schema, supports_color_stdout());
+        let stdout = std::io::stdout();
+        let mut lock = stdout.lock();
+        let _ = lock.write_all(text.as_bytes());
+        let _ = lock.flush();
     }
 
     /// Print help text to stderr. Use this alongside an error message so
     /// both are grouped on the same stream.
     pub fn print_error(schema: &CommandSchema) {
-        eprint!("{}", Self::format_with_color(schema, supports_color()));
+        use std::io::Write;
+        let text = Self::format_with_color(schema, supports_color());
+        let stderr = std::io::stderr();
+        let mut lock = stderr.lock();
+        let _ = lock.write_all(text.as_bytes());
+        let _ = lock.flush();
     }
 }
 

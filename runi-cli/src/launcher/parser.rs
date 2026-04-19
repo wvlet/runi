@@ -48,12 +48,10 @@ impl ParseResult {
     /// code paths for "option or argument by name".
     pub fn get<T: FromArg>(&self, name: &str) -> Result<Option<T>> {
         let key = self.canonical_key(name);
-        if let Some(values) = self.values.get(&key) {
-            if let Some(last) = values.last() {
-                return T::from_arg(last)
-                    .map(Some)
-                    .map_err(|m| Error::invalid_value(name, last, m));
-            }
+        if let Some(last) = self.values.get(&key).and_then(|v| v.last()) {
+            return T::from_arg(last)
+                .map(Some)
+                .map_err(|m| Error::invalid_value(name, last, m));
         }
         if let Some(raw) = self.args.get(&key) {
             return T::from_arg(raw)
@@ -152,14 +150,14 @@ impl OptionParser {
                     let opt = schema
                         .find_option_long(name)
                         .ok_or_else(|| Error::UnknownOption(arg.clone()))?;
-                    i = consume_option(opt, args, i, inline, &mut result)?;
+                    i = consume_option(schema, opt, args, i, inline, &mut result)?;
                     continue;
                 }
                 let name = &arg[1..];
                 let opt = schema
                     .find_option_short(name)
                     .ok_or_else(|| Error::UnknownOption(arg.clone()))?;
-                i = consume_option(opt, args, i, None, &mut result)?;
+                i = consume_option(schema, opt, args, i, None, &mut result)?;
                 continue;
             }
 
@@ -180,23 +178,21 @@ impl OptionParser {
             // subcommand dispatches first; otherwise it fills the optional
             // slot. Users can force a subcommand-named string into the
             // positional slot with `--`.
-            if !schema.subcommands.is_empty() {
-                if let Some(sub) = schema.find_subcommand(arg) {
-                    match OptionParser::parse(sub, &args[i + 1..]) {
-                        Ok(sub_result) => {
-                            result.subcommand = Some((sub.name.clone(), Box::new(sub_result)));
-                            return finalize(result, schema);
-                        }
-                        Err(Error::InSubcommand { mut path, source }) => {
-                            path.insert(0, sub.name.clone());
-                            return Err(Error::InSubcommand { path, source });
-                        }
-                        Err(e) => {
-                            return Err(Error::InSubcommand {
-                                path: vec![sub.name.clone()],
-                                source: Box::new(e),
-                            });
-                        }
+            if let Some(sub) = schema.find_subcommand(arg) {
+                match OptionParser::parse(sub, &args[i + 1..]) {
+                    Ok(sub_result) => {
+                        result.subcommand = Some((sub.name.clone(), Box::new(sub_result)));
+                        return finalize(result, schema);
+                    }
+                    Err(Error::InSubcommand { mut path, source }) => {
+                        path.insert(0, sub.name.clone());
+                        return Err(Error::InSubcommand { path, source });
+                    }
+                    Err(e) => {
+                        return Err(Error::InSubcommand {
+                            path: vec![sub.name.clone()],
+                            source: Box::new(e),
+                        });
                     }
                 }
             }
@@ -259,6 +255,7 @@ fn looks_like_option(arg: &str) -> bool {
 }
 
 fn consume_option(
+    schema: &CommandSchema,
     opt: &CLOption,
     args: &[String],
     mut i: usize,
@@ -275,11 +272,12 @@ fn consume_option(
             let raw = args
                 .get(i)
                 .ok_or_else(|| Error::MissingValue(token.clone()))?;
-            // Reject `--output --verbose` — the next token is clearly
-            // another option, so the value is missing. Typed negatives
-            // like `--offset -1` still work because `-1` is not
-            // classified as an option by `looks_like_option`.
-            if looks_like_option(raw) || raw == "-h" || raw == "--help" {
+            // Reject `--output --verbose` when `--verbose` is a *known*
+            // option on this schema — that's almost certainly a typo and
+            // silently consuming the flag would hide the real intent.
+            // Arbitrary dash-prefixed strings (values like `-draft.txt`
+            // or negative numbers like `-1`) still bind as values.
+            if is_known_option_token(schema, raw) || raw == "-h" || raw == "--help" {
                 return Err(Error::MissingValue(token.clone()));
             }
             raw.clone()
@@ -292,6 +290,20 @@ fn consume_option(
         result.flags.insert(key);
     }
     Ok(i + 1)
+}
+
+fn is_known_option_token(schema: &CommandSchema, raw: &str) -> bool {
+    if !looks_like_option(raw) {
+        return false;
+    }
+    if let Some(rest) = raw.strip_prefix("--") {
+        let (name, _) = split_eq(rest);
+        return schema.find_option_long(name).is_some();
+    }
+    if let Some(rest) = raw.strip_prefix('-') {
+        return schema.find_option_short(rest).is_some();
+    }
+    false
 }
 
 fn consume_positional(
@@ -581,6 +593,22 @@ mod tests {
         let schema = CommandSchema::new("app", "").option("--offset", "");
         let r = OptionParser::parse(&schema, &args(&["--offset", "-1"])).unwrap();
         assert_eq!(r.require::<i32>("--offset").unwrap(), -1);
+    }
+
+    #[test]
+    fn option_accepts_unknown_dash_prefixed_string_as_value() {
+        // `-draft.txt` is not a registered option — the user probably
+        // meant it as a literal filename value, so accept it.
+        let schema = CommandSchema::new("app", "").option("--file", "");
+        let r = OptionParser::parse(&schema, &args(&["--file", "-draft.txt"])).unwrap();
+        assert_eq!(r.require::<String>("--file").unwrap(), "-draft.txt");
+    }
+
+    #[test]
+    fn option_rejects_help_as_value() {
+        let schema = CommandSchema::new("app", "").option("--file", "");
+        let err = OptionParser::parse(&schema, &args(&["--file", "--help"])).unwrap_err();
+        assert!(matches!(err, Error::MissingValue(_)));
     }
 
     #[test]

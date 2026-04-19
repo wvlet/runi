@@ -7,6 +7,11 @@ description = "Terminal styling and CLI utilities for the Runi library collectio
 
 [dependencies]
 nu-ansi-term.workspace = true
+runi-cli-macros = { workspace = true, optional = true }
+
+[features]
+default = ["derive"]
+derive = ["dep:runi-cli-macros"]
 
 [dev-dependencies]
 runi-test.workspace = true

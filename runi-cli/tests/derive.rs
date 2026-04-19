@@ -256,6 +256,40 @@ fn enum_derive_register_on_launcher() {
 }
 
 #[test]
+fn enum_variant_doc_becomes_subcommand_description() {
+    // Variant `///` on GitSub::Init/Clone should flow through to the
+    // composed launcher schema, overriding the inner struct's own
+    // description at registration time.
+    let launcher = GitSub::register_on(Launcher::<GitApp>::of());
+    let schema = launcher.schema();
+    let init = schema
+        .subcommands
+        .iter()
+        .find(|s| s.name == "init")
+        .unwrap();
+    let clone = schema
+        .subcommands
+        .iter()
+        .find(|s| s.name == "clone")
+        .unwrap();
+    assert_eq!(init.description, "Initialize a repository.");
+    assert_eq!(clone.description, "Clone a repository.");
+}
+
+#[test]
+fn command_with_description_overrides_inner_schema_description() {
+    let launcher =
+        Launcher::<GitApp>::of().command_with_description::<CloneCmd>("clone", "override!");
+    let schema = launcher.schema();
+    let clone = schema
+        .subcommands
+        .iter()
+        .find(|s| s.name == "clone")
+        .unwrap();
+    assert_eq!(clone.description, "override!");
+}
+
+#[test]
 fn enum_derive_default_name_is_lowercase_variant() {
     // With no explicit #[command(name = ...)], the registered name is the
     // variant ident lower-cased.

@@ -53,6 +53,14 @@ impl<G: Command + 'static> Launcher<G> {
         LauncherWithSubs::<G>::new().command::<S>(name)
     }
 
+    /// Like [`Launcher::command`] but with a description override.
+    pub fn command_with_description<S>(self, name: &str, description: &str) -> LauncherWithSubs<G>
+    where
+        S: Command + SubCommandOf<G> + 'static,
+    {
+        LauncherWithSubs::<G>::new().command_with_description::<S>(name, description)
+    }
+
     /// Parse `args` into a `G` without running.
     pub fn parse(&self, args: &[String]) -> Result<G> {
         let schema = root_schema::<G>();
@@ -100,7 +108,26 @@ impl<G: Command + 'static> LauncherWithSubs<G> {
     /// Register a subcommand. `S` must implement [`Command`] (for parsing)
     /// and [`SubCommandOf<G>`] (for running with access to the parsed global
     /// options).
-    pub fn command<S>(mut self, name: &str) -> Self
+    pub fn command<S>(self, name: &str) -> Self
+    where
+        S: Command + SubCommandOf<G> + 'static,
+    {
+        self.register::<S>(name, None)
+    }
+
+    /// Like [`LauncherWithSubs::command`] but overrides the help description
+    /// for the registered subcommand (otherwise `S::schema().description`
+    /// is used). Primarily called by `#[derive(Command)]` on enums when a
+    /// variant carries its own `#[command(description = "...")]` or doc
+    /// comment.
+    pub fn command_with_description<S>(self, name: &str, description: &str) -> Self
+    where
+        S: Command + SubCommandOf<G> + 'static,
+    {
+        self.register::<S>(name, Some(description))
+    }
+
+    fn register<S>(mut self, name: &str, description: Option<&str>) -> Self
     where
         S: Command + SubCommandOf<G> + 'static,
     {
@@ -113,6 +140,9 @@ impl<G: Command + 'static> LauncherWithSubs<G> {
         );
         let mut schema = S::schema();
         schema.name = name.to_string();
+        if let Some(d) = description {
+            schema.description = d.to_string();
+        }
         let name_owned = schema.name.clone();
         let runner: Runner<G> = Box::new(move |global, parsed| {
             // S::from_parsed failures are parse-origin — wrap them with
@@ -129,6 +159,14 @@ impl<G: Command + 'static> LauncherWithSubs<G> {
         });
         self.subs.push(Entry { schema, runner });
         self
+    }
+
+    /// Return the combined root + subcommand schema. Useful for tests and
+    /// for introspection (e.g. generating shell completions in the
+    /// future). Panics on the same invariants as execution — don't call
+    /// this from production code if those might fire.
+    pub fn schema(&self) -> CommandSchema {
+        self.combined_schema()
     }
 
     fn combined_schema(&self) -> CommandSchema {

@@ -159,7 +159,12 @@ fn derive_enum(input: &DeriveInput, data: &DataEnum) -> Result<TokenStream> {
     let registration_body = variants.iter().map(|v| {
         let name_lit = &v.name;
         let inner = &v.inner_ty;
-        quote! { .command::<#inner>(#name_lit) }
+        match &v.description {
+            Some(desc) => {
+                quote! { .command_with_description::<#inner>(#name_lit, #desc) }
+            }
+            None => quote! { .command::<#inner>(#name_lit) },
+        }
     });
     let parent_bounds = variants.iter().map(|v| {
         let inner = &v.inner_ty;
@@ -192,6 +197,11 @@ fn derive_enum(input: &DeriveInput, data: &DataEnum) -> Result<TokenStream> {
 struct VariantSpec {
     name: LitStr,
     inner_ty: Type,
+    /// When set, overrides the subcommand help description at
+    /// registration time. Precedence: explicit `#[command(description)]`
+    /// → doc comment → (fall back to the inner struct's own description
+    /// at runtime).
+    description: Option<String>,
 }
 
 impl VariantSpec {
@@ -218,7 +228,12 @@ impl VariantSpec {
                     variant.ident.span(),
                 )
             });
-        Ok(Self { name, inner_ty })
+        let description = attrs.description.or_else(|| collect_doc(&variant.attrs));
+        Ok(Self {
+            name,
+            inner_ty,
+            description,
+        })
     }
 }
 

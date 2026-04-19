@@ -1,13 +1,13 @@
 [package]
 name = "runi-log"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 description = "Structured logging for the Runi library collection"
-license = "Apache-2.0"
 
 [dependencies]
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-tracing-core = "0.1"
-nu-ansi-term = "0.50"
-chrono = { version = "0.4", default-features = false, features = ["clock"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-core.workspace = true
+nu-ansi-term.workspace = true
+chrono.workspace = true

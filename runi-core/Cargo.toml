@@ -1,13 +1,13 @@
 [package]
 name = "runi-core"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 description = "Core types for the Runi library collection"
-license = "Apache-2.0"
 
 [dependencies]
-thiserror = "2"
+thiserror.workspace = true
 
 [dev-dependencies]
-runi-test = { path = "../runi-test" }
-rstest = "0.25"
+runi-test.workspace = true
+rstest.workspace = true

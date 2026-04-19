@@ -3,9 +3,9 @@ mod format;
 use format::UniFormatter;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
-pub use tracing::{debug, error, info, trace, warn};
-pub use tracing::{instrument, span, Level};
 pub use tracing::Span;
+pub use tracing::{Level, instrument, span};
+pub use tracing::{debug, error, info, trace, warn};
 
 /// Initialize logging with sensible defaults.
 ///
@@ -18,18 +18,14 @@ pub fn init() {
 
 /// Initialize logging with a custom env var name for the filter.
 pub fn init_with_env(env_var: &str) {
-    let filter = EnvFilter::try_from_env(env_var)
-        .unwrap_or_else(|_| EnvFilter::new("info"));
+    let filter = EnvFilter::try_from_env(env_var).unwrap_or_else(|_| EnvFilter::new("info"));
 
     let is_terminal = std::io::IsTerminal::is_terminal(&std::io::stderr());
 
     if is_terminal {
         tracing_subscriber::registry()
             .with(filter)
-            .with(
-                fmt::layer()
-                    .event_format(UniFormatter::new(true)),
-            )
+            .with(fmt::layer().event_format(UniFormatter::new(true)))
             .init();
     } else {
         tracing_subscriber::registry()
@@ -50,10 +46,7 @@ pub fn init_with_level(level: &str) {
     let filter = EnvFilter::new(level);
     tracing_subscriber::registry()
         .with(filter)
-        .with(
-            fmt::layer()
-                .event_format(UniFormatter::new(true)),
-        )
+        .with(fmt::layer().event_format(UniFormatter::new(true)))
         .init();
 }
 

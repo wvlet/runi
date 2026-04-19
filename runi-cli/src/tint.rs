@@ -12,42 +12,111 @@ impl Tint {
     }
 
     // Foreground colors
-    pub fn red() -> Self { Self::new(AnsiColor::Red.normal()) }
-    pub fn green() -> Self { Self::new(AnsiColor::Green.normal()) }
-    pub fn yellow() -> Self { Self::new(AnsiColor::Yellow.normal()) }
-    pub fn blue() -> Self { Self::new(AnsiColor::Blue.normal()) }
-    pub fn purple() -> Self { Self::new(AnsiColor::Purple.normal()) }
-    pub fn cyan() -> Self { Self::new(AnsiColor::Cyan.normal()) }
-    pub fn white() -> Self { Self::new(AnsiColor::White.normal()) }
-    pub fn black() -> Self { Self::new(AnsiColor::Black.normal()) }
+    pub fn red() -> Self {
+        Self::new(AnsiColor::Red.normal())
+    }
+    pub fn green() -> Self {
+        Self::new(AnsiColor::Green.normal())
+    }
+    pub fn yellow() -> Self {
+        Self::new(AnsiColor::Yellow.normal())
+    }
+    pub fn blue() -> Self {
+        Self::new(AnsiColor::Blue.normal())
+    }
+    pub fn purple() -> Self {
+        Self::new(AnsiColor::Purple.normal())
+    }
+    pub fn cyan() -> Self {
+        Self::new(AnsiColor::Cyan.normal())
+    }
+    pub fn white() -> Self {
+        Self::new(AnsiColor::White.normal())
+    }
+    pub fn black() -> Self {
+        Self::new(AnsiColor::Black.normal())
+    }
 
     // Bright foreground colors
-    pub fn bright_red() -> Self { Self::new(AnsiColor::LightRed.normal()) }
-    pub fn bright_green() -> Self { Self::new(AnsiColor::LightGreen.normal()) }
-    pub fn bright_yellow() -> Self { Self::new(AnsiColor::LightYellow.normal()) }
-    pub fn bright_blue() -> Self { Self::new(AnsiColor::LightBlue.normal()) }
-    pub fn bright_purple() -> Self { Self::new(AnsiColor::LightPurple.normal()) }
-    pub fn bright_cyan() -> Self { Self::new(AnsiColor::LightCyan.normal()) }
+    pub fn bright_red() -> Self {
+        Self::new(AnsiColor::LightRed.normal())
+    }
+    pub fn bright_green() -> Self {
+        Self::new(AnsiColor::LightGreen.normal())
+    }
+    pub fn bright_yellow() -> Self {
+        Self::new(AnsiColor::LightYellow.normal())
+    }
+    pub fn bright_blue() -> Self {
+        Self::new(AnsiColor::LightBlue.normal())
+    }
+    pub fn bright_purple() -> Self {
+        Self::new(AnsiColor::LightPurple.normal())
+    }
+    pub fn bright_cyan() -> Self {
+        Self::new(AnsiColor::LightCyan.normal())
+    }
 
     // Style modifiers (chainable)
-    pub fn bold(mut self) -> Self { self.style = self.style.bold(); self }
-    pub fn dimmed(mut self) -> Self { self.style = self.style.dimmed(); self }
-    pub fn italic(mut self) -> Self { self.style = self.style.italic(); self }
-    pub fn underline(mut self) -> Self { self.style = self.style.underline(); self }
-    pub fn strikethrough(mut self) -> Self { self.style = self.style.strikethrough(); self }
+    pub fn bold(mut self) -> Self {
+        self.style = self.style.bold();
+        self
+    }
+    pub fn dimmed(mut self) -> Self {
+        self.style = self.style.dimmed();
+        self
+    }
+    pub fn italic(mut self) -> Self {
+        self.style = self.style.italic();
+        self
+    }
+    pub fn underline(mut self) -> Self {
+        self.style = self.style.underline();
+        self
+    }
+    pub fn strikethrough(mut self) -> Self {
+        self.style = self.style.strikethrough();
+        self
+    }
 
     // Background colors (chainable)
-    pub fn bg_red(mut self) -> Self { self.style = self.style.on(AnsiColor::Red); self }
-    pub fn bg_green(mut self) -> Self { self.style = self.style.on(AnsiColor::Green); self }
-    pub fn bg_yellow(mut self) -> Self { self.style = self.style.on(AnsiColor::Yellow); self }
-    pub fn bg_blue(mut self) -> Self { self.style = self.style.on(AnsiColor::Blue); self }
-    pub fn bg_purple(mut self) -> Self { self.style = self.style.on(AnsiColor::Purple); self }
-    pub fn bg_cyan(mut self) -> Self { self.style = self.style.on(AnsiColor::Cyan); self }
-    pub fn bg_white(mut self) -> Self { self.style = self.style.on(AnsiColor::White); self }
-    pub fn bg_black(mut self) -> Self { self.style = self.style.on(AnsiColor::Black); self }
+    pub fn bg_red(mut self) -> Self {
+        self.style = self.style.on(AnsiColor::Red);
+        self
+    }
+    pub fn bg_green(mut self) -> Self {
+        self.style = self.style.on(AnsiColor::Green);
+        self
+    }
+    pub fn bg_yellow(mut self) -> Self {
+        self.style = self.style.on(AnsiColor::Yellow);
+        self
+    }
+    pub fn bg_blue(mut self) -> Self {
+        self.style = self.style.on(AnsiColor::Blue);
+        self
+    }
+    pub fn bg_purple(mut self) -> Self {
+        self.style = self.style.on(AnsiColor::Purple);
+        self
+    }
+    pub fn bg_cyan(mut self) -> Self {
+        self.style = self.style.on(AnsiColor::Cyan);
+        self
+    }
+    pub fn bg_white(mut self) -> Self {
+        self.style = self.style.on(AnsiColor::White);
+        self
+    }
+    pub fn bg_black(mut self) -> Self {
+        self.style = self.style.on(AnsiColor::Black);
+        self
+    }
 
     // ANSI 256 color
-    pub fn color(n: u8) -> Self { Self::new(AnsiColor::Fixed(n).normal()) }
+    pub fn color(n: u8) -> Self {
+        Self::new(AnsiColor::Fixed(n).normal())
+    }
     pub fn bg_color(mut self, n: u8) -> Self {
         self.style = self.style.on(AnsiColor::Fixed(n));
         self

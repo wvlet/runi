@@ -39,7 +39,7 @@ jobs:
       - name: Test
         run: cargo test --workspace
   fmt:
-    name: Format
+    name: Code Format
     needs: changes
     if: ${{ needs.changes.outputs.src == 'true' }}
     runs-on: ubuntu-latest

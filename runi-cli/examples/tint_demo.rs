@@ -20,7 +20,11 @@ fn main() {
     let header = Tint::cyan().bold().underline();
     let dim = Tint::blue().dimmed();
     println!("{}", header.paint("=== Runi CLI Demo ==="));
-    println!("  {} {}", dim.paint("version:"), Tint::white().paint("0.1.0"));
+    println!(
+        "  {} {}",
+        dim.paint("version:"),
+        Tint::white().paint("0.1.0")
+    );
     println!("  {} {}", dim.paint("crates:"), Tint::white().paint("4"));
 
     println!();

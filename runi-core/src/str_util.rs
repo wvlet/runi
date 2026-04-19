@@ -48,8 +48,8 @@ pub fn to_camel_case(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use runi_test::pretty_assertions::assert_eq;
     use runi_test::prelude::*;
+    use runi_test::pretty_assertions::assert_eq;
 
     #[rstest]
     #[case("hello", 10, "hello")]

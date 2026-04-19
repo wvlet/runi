@@ -9,6 +9,7 @@
 # Crates
 
 - [Overview](./crates/overview.md)
+  - [runi (façade)](./crates/runi.md)
   - [runi-core](./crates/runi-core.md)
   - [runi-log](./crates/runi-log.md)
   - [runi-cli](./crates/runi-cli.md)

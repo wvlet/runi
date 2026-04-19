@@ -1,5 +1,12 @@
 [workspace]
-members = ["runi-cli", "runi-cli-macros", "runi-core", "runi-log", "runi-test"]
+members = [
+  "runi",
+  "runi-cli",
+  "runi-cli-macros",
+  "runi-core",
+  "runi-log",
+  "runi-test",
+]
 resolver = "2"
 
 [workspace.package]
@@ -10,6 +17,7 @@ repository = "https://github.com/wvlet/runi"
 homepage = "https://github.com/wvlet/runi"
 
 [workspace.dependencies]
+runi = { path = "runi", version = "0.1.0" }
 runi-cli = { path = "runi-cli", version = "0.1.0" }
 runi-cli-macros = { path = "runi-cli-macros", version = "0.1.0" }
 runi-core = { path = "runi-core", version = "0.1.0" }

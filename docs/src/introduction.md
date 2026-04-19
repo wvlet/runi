@@ -6,6 +6,7 @@ concern and can be used on its own or combined with the rest of the set.
 
 | Crate                           | Purpose                                                   |
 | ------------------------------- | --------------------------------------------------------- |
+| [`runi`](./crates/runi.md)      | Façade crate — re-exports the rest behind feature flags   |
 | [`runi-core`](./crates/runi-core.md) | Shared error, result, and configuration types        |
 | [`runi-log`](./crates/runi-log.md)   | Structured logging with a Uni-style terminal format  |
 | [`runi-cli`](./crates/runi-cli.md)   | Terminal color detection and `Tint` styling helpers  |

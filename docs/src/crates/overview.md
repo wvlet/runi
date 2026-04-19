@@ -1,11 +1,14 @@
 # Crates Overview
 
-Runi is a Cargo workspace with four crates. They share a single
-workspace version (see [Versioning](#versioning) below) and each has
-its own entry on [docs.rs](https://docs.rs).
+Runi is a Cargo workspace. Most callers depend on the top-level
+[`runi`](./runi.md) façade crate and let feature flags decide what is
+pulled in; the sub-crates can also be used directly. Crates share a
+single workspace version (see [Versioning](#versioning) below) and
+each has its own entry on [docs.rs](https://docs.rs).
 
 | Crate                                     | Role              | Typical user                  |
 | ----------------------------------------- | ----------------- | ----------------------------- |
+| [`runi`](./runi.md)                       | Façade / re-exports | Most callers                |
 | [`runi-core`](./runi-core.md)             | Foundation types  | Every other Runi crate        |
 | [`runi-log`](./runi-log.md)               | Logging           | Application / service authors |
 | [`runi-cli`](./runi-cli.md)               | CLI parser + terminal styling | CLI authors       |

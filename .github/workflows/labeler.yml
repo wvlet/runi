@@ -1,0 +1,17 @@
+name: PR Labeler
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  label:
+    name: Label PR by branch prefix
+    permissions:
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/labeler@v6

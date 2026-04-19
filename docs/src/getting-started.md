@@ -1,34 +1,31 @@
 # Getting Started
 
-Runi is published as several crates on [crates.io](https://crates.io).
-Add only the ones you need — but because all `runi-*` crates share a
-single workspace version, use the **same version** for every entry.
-
 ## Install
+
+Most callers only need `runi-core` — it bundles every other workspace
+sub-crate behind feature flags, all enabled by default. Cargo's
+`package = "..."` alias lets you reach everything through the clean
+`runi::` namespace:
 
 ```toml
 # Cargo.toml
 [dependencies]
-runi-core = "0.1"
-runi-log  = "0.1"
-runi-cli  = "0.1"
+runi = { package = "runi-core", version = "0.1" }
 
 [dev-dependencies]
 runi-test = "0.1"
 ```
 
-If your own project is a workspace and you pull in more than one of the
-`runi-*` crates, centralize the pin in `[workspace.dependencies]` and
-let members inherit with `runi-core = { workspace = true }`. This keeps
-all four crates in lockstep on upgrades.
+`runi-test` stays out of the bundle because it's a development-only
+helper.
 
 ## A minimal example
 
 ```rust,ignore
-use runi_log::{info, warn};
+use runi::log::{info, warn};
 
 fn main() {
-    runi_log::init();
+    runi::log::init();
 
     info!(app = "demo", "starting up");
     warn!("disk space is low");
@@ -49,10 +46,7 @@ collectors can parse them directly.
 
 ## Next steps
 
-- Read the [Crates Overview](./crates/overview.md) for a map of the
-  workspace.
-- Jump to a specific crate guide:
-  [`runi-core`](./crates/runi-core.md),
-  [`runi-log`](./crates/runi-log.md),
-  [`runi-cli`](./crates/runi-cli.md),
-  [`runi-test`](./crates/runi-test.md).
+- [Crates Overview](./crates/overview.md) — map of the workspace and
+  how the pieces fit together.
+- [`runi-core`](./crates/runi-core.md) — canonical list of bundled
+  features and the foundation types.

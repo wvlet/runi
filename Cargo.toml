@@ -1,5 +1,5 @@
 [workspace]
-members = ["runi-cli", "runi-core", "runi-log", "runi-test"]
+members = ["runi-cli", "runi-cli-macros", "runi-core", "runi-log", "runi-test"]
 resolver = "2"
 
 [workspace.package]
@@ -9,6 +9,7 @@ license = "Apache-2.0"
 
 [workspace.dependencies]
 runi-cli = { path = "runi-cli", version = "0.1.0" }
+runi-cli-macros = { path = "runi-cli-macros", version = "0.1.0" }
 runi-core = { path = "runi-core", version = "0.1.0" }
 runi-log = { path = "runi-log", version = "0.1.0" }
 runi-test = { path = "runi-test", version = "0.1.0" }
@@ -16,9 +17,13 @@ runi-test = { path = "runi-test", version = "0.1.0" }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 nu-ansi-term = "0.50"
 pretty_assertions = "1"
+proc-macro2 = "1"
 proptest = "1"
+quote = "1"
 rstest = "0.25"
+syn = { version = "2", features = ["full", "extra-traits"] }
 thiserror = "2"
 tracing = "0.1"
 tracing-core = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+trybuild = "1"

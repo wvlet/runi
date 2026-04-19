@@ -6,3 +6,8 @@ pub use launcher::{
     LauncherWithSubs, OptionParser, ParseResult, Result, Runnable, SubCommandOf,
 };
 pub use tint::{Tint, supports_color, supports_color_stdout};
+
+/// `#[derive(Command)]` — generate a `Command` trait impl from attributed
+/// fields. Requires the default `derive` feature.
+#[cfg(feature = "derive")]
+pub use runi_cli_macros::Command;

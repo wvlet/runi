@@ -7,3 +7,6 @@ license = "Apache-2.0"
 
 [dependencies]
 nu-ansi-term = "0.50"
+
+[dev-dependencies]
+runi-test = { path = "../runi-test" }

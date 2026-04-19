@@ -54,8 +54,8 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use runi_test::pretty_assertions::assert_eq;
     use runi_test::prelude::*;
+    use runi_test::pretty_assertions::assert_eq;
 
     #[fixture]
     fn config() -> Config {

@@ -19,8 +19,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use runi_test::pretty_assertions::assert_eq;
     use runi_test::prelude::*;
+    use runi_test::pretty_assertions::assert_eq;
 
     #[rstest]
     #[case("something went wrong")]

@@ -1,4 +1,4 @@
-use runi_log::{info, warn, debug, error, span, Level};
+use runi_log::{Level, debug, error, info, span, warn};
 
 fn main() {
     runi_log::init();

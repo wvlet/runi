@@ -103,16 +103,14 @@ where
         }
 
         // Source location: - (filename:line)
-        if self.show_source {
-            if let (Some(file), Some(line)) = (meta.file(), meta.line()) {
-                let filename = file.rsplit('/').next().unwrap_or(file);
-                write!(
-                    writer,
-                    " {} {}",
-                    dim.paint("-"),
-                    dim.paint(format!("({}:{})", filename, line))
-                )?;
-            }
+        if let (true, Some(file), Some(line)) = (self.show_source, meta.file(), meta.line()) {
+            let filename = file.rsplit('/').next().unwrap_or(file);
+            write!(
+                writer,
+                " {} {}",
+                dim.paint("-"),
+                dim.paint(format!("({}:{})", filename, line))
+            )?;
         }
 
         writeln!(writer)
@@ -144,7 +142,8 @@ impl tracing::field::Visit for MessageVisitor {
             if !self.fields.is_empty() {
                 self.fields.push_str(", ");
             }
-            self.fields.push_str(&format!("{}={:?}", field.name(), value));
+            self.fields
+                .push_str(&format!("{}={:?}", field.name(), value));
         }
     }
 
@@ -155,7 +154,8 @@ impl tracing::field::Visit for MessageVisitor {
             if !self.fields.is_empty() {
                 self.fields.push_str(", ");
             }
-            self.fields.push_str(&format!("{}=\"{}\"", field.name(), value));
+            self.fields
+                .push_str(&format!("{}=\"{}\"", field.name(), value));
         }
     }
 

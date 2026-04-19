@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Publish to crates.io
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+    runs-on: ubuntu-latest
+    env:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Publish crates
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          publish() {
+            local crate="$1"
+            if curl -sfL -o /dev/null "https://crates.io/api/v1/crates/${crate}/${version}"; then
+              echo "${crate}@${version} already on crates.io, skipping"
+            else
+              cargo publish -p "$crate"
+              sleep 20
+            fi
+          }
+          publish runi-test
+          publish runi-core
+          publish runi-log
+          publish runi-cli

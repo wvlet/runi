@@ -4,7 +4,7 @@ use std::process;
 use super::error::{Error, Result};
 use super::help::HelpPrinter;
 use super::parser::{OptionParser, ParseResult};
-use super::schema::CommandSchema;
+use super::schema::{CLArgument, CommandSchema};
 
 /// A command (root or subcommand) that knows how to produce its argument
 /// schema and how to construct itself from a [`ParseResult`].
@@ -206,23 +206,47 @@ fn report_error(err: Error, root: &CommandSchema) -> i32 {
 }
 
 /// Build a help-only schema that represents `root ... path` as a single
-/// command, so the usage line reads e.g. `git clone [OPTIONS] <url>` and
-/// includes the root's global options alongside the subcommand's own. The
-/// returned schema is only suitable for help printing — it is not used for
-/// parsing.
+/// command. The usage line reads e.g. `git clone [OPTIONS] <url>` or
+/// `app <workspace> run [OPTIONS] <target>` — ancestor positionals and
+/// subcommand names are folded into the composed schema's `name` so they
+/// appear in the order the user must actually type them. Options from the
+/// whole chain are merged into a single options list. The returned schema
+/// is only suitable for help printing — it is not used for parsing.
 fn compose_help_schema(root: &CommandSchema, path: &[String]) -> Option<CommandSchema> {
     let mut options = root.options.clone();
-    let mut schema = root;
-    let mut parts = vec![root.name.clone()];
-    for name in path {
-        schema = schema.subcommands.iter().find(|s| s.name == *name)?;
-        options.extend(schema.options.iter().cloned());
-        parts.push(name.clone());
+    let mut name_parts = vec![root.name.clone()];
+    for arg in &root.arguments {
+        name_parts.push(argument_display(arg));
     }
+
+    let mut schema = root;
+    for (i, sub_name) in path.iter().enumerate() {
+        schema = schema.subcommands.iter().find(|s| s.name == *sub_name)?;
+        options.extend(schema.options.iter().cloned());
+        name_parts.push(sub_name.clone());
+        // Intermediate subcommands' positionals come between this name and
+        // the next subcommand. The deepest subcommand's arguments are left
+        // in the composed schema's `arguments` so the help printer renders
+        // them after `[OPTIONS]`.
+        if i + 1 < path.len() {
+            for arg in &schema.arguments {
+                name_parts.push(argument_display(arg));
+            }
+        }
+    }
+
     let mut composed = schema.clone();
-    composed.name = parts.join(" ");
+    composed.name = name_parts.join(" ");
     composed.options = options;
     Some(composed)
+}
+
+fn argument_display(arg: &CLArgument) -> String {
+    if arg.required {
+        format!("<{}>", arg.name)
+    } else {
+        format!("[{}]", arg.name)
+    }
 }
 
 fn env_args() -> Vec<String> {
@@ -475,6 +499,22 @@ mod tests {
         assert!(composed.options.iter().any(|o| o.matches_long("verbose")));
         // Clone's own positional must be preserved.
         assert!(composed.arguments.iter().any(|a| a.name == "url"));
+    }
+
+    #[test]
+    fn compose_help_schema_folds_root_positionals_into_name() {
+        // `app <workspace> run <target>` — the root has a positional that
+        // must appear before the subcommand name in the usage line.
+        let root = CommandSchema::new("app", "").argument("workspace", "");
+        let sub = CommandSchema::new("run", "").argument("target", "");
+        let mut with_sub = root.clone();
+        with_sub.subcommands.push(sub);
+        let composed = compose_help_schema(&with_sub, &["run".to_string()]).expect("must resolve");
+        assert_eq!(composed.name, "app <workspace> run");
+        // The deepest subcommand's own arguments stay in `arguments` so the
+        // help printer renders them after `[OPTIONS]` in the usage line.
+        assert_eq!(composed.arguments.len(), 1);
+        assert_eq!(composed.arguments[0].name, "target");
     }
 
     #[test]

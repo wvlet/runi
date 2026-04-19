@@ -8,17 +8,17 @@ edition = "2024"
 license = "Apache-2.0"
 
 [workspace.dependencies]
+runi-cli = { path = "runi-cli", version = "0.1.0" }
 runi-core = { path = "runi-core", version = "0.1.0" }
 runi-log = { path = "runi-log", version = "0.1.0" }
-runi-cli = { path = "runi-cli", version = "0.1.0" }
 runi-test = { path = "runi-test", version = "0.1.0" }
 
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
 nu-ansi-term = "0.50"
-thiserror = "2"
-rstest = "0.25"
 pretty_assertions = "1"
 proptest = "1"
+rstest = "0.25"
+thiserror = "2"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 tracing-core = "0.1"
-chrono = { version = "0.4", default-features = false, features = ["clock"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }

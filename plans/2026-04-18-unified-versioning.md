@@ -23,7 +23,9 @@ At this stage (pre-1.0, small workspace, no external pinning), unified versionin
 
 ## Bump procedure (after this lands)
 
-Edit `version` in one place — root `Cargo.toml` `[workspace.package]` — and all member crates follow. When a member later needs its own cadence, override `version = "..."` in that crate's `[package]` and (if it's used by another workspace member) bump the matching entry in `[workspace.dependencies]`.
+Edit `version` in `[workspace.package]` — all four member crates pick it up. Then mirror the new version in each intra-workspace entry under `[workspace.dependencies]` (`runi-core`, `runi-log`, `runi-cli`, `runi-test`), since Cargo doesn't let those inherit. So: one canonical edit plus four mirror edits per bump, which is why a helper like `cargo set-version` / `cargo-release` is the practical path once publishing starts.
+
+When a member later needs its own cadence, override `version = "..."` in that crate's `[package]` and bump the matching `[workspace.dependencies]` entry if another workspace member depends on it.
 
 ## Files touched
 

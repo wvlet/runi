@@ -55,7 +55,7 @@ impl<G: Command + 'static> Launcher<G> {
 
     /// Parse `args` into a `G` without running.
     pub fn parse(&self, args: &[String]) -> Result<G> {
-        let schema = G::schema();
+        let schema = root_schema::<G>();
         let parsed = OptionParser::parse(&schema, args)?;
         G::from_parsed(&parsed)
     }
@@ -70,7 +70,7 @@ impl<G: Command + 'static> Launcher<G> {
         G: Runnable,
     {
         let args = env_args();
-        let schema = G::schema();
+        let schema = root_schema::<G>();
         let parse_result =
             OptionParser::parse(&schema, &args).and_then(|parsed| G::from_parsed(&parsed));
         let code = match parse_result {
@@ -271,6 +271,20 @@ fn argument_display(arg: &CLArgument) -> String {
 
 fn env_args() -> Vec<String> {
     std::env::args().skip(1).collect()
+}
+
+/// Fetch `G::schema()` and assert it declares no subcommands. The root-only
+/// `Launcher` path has no dispatch table, so a subcommand declared directly
+/// on the schema would parse successfully but never execute — forcing
+/// callers to register subcommands via `Launcher::command()` makes the
+/// misuse impossible.
+fn root_schema<G: Command>() -> CommandSchema {
+    let schema = G::schema();
+    assert!(
+        schema.subcommands.is_empty(),
+        "Launcher::<G> does not dispatch subcommands; register them via Launcher::command()",
+    );
+    schema
 }
 
 #[cfg(test)]
@@ -560,6 +574,30 @@ mod tests {
         fn from_parsed(_: &ParseResult) -> Result<Self> {
             Ok(Self)
         }
+    }
+
+    // Root-only Launcher must also reject G::schema() declaring subcommands
+    // — there is no dispatch table in that mode, so it would silently ignore
+    // user input.
+    struct RunnableStubSub;
+    impl Command for RunnableStubSub {
+        fn schema() -> CommandSchema {
+            CommandSchema::new("app", "").subcommand(CommandSchema::new("clone", "stub"))
+        }
+        fn from_parsed(_: &ParseResult) -> Result<Self> {
+            Ok(Self)
+        }
+    }
+    impl Runnable for RunnableStubSub {
+        fn run(&self) -> Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "Launcher::<G> does not dispatch subcommands")]
+    fn root_launcher_rejects_schema_declared_subcommands() {
+        let _ = Launcher::<RunnableStubSub>::of().parse(&[]);
     }
 
     #[test]

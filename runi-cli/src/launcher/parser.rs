@@ -53,6 +53,13 @@ impl ParseResult {
                 .map(Some)
                 .map_err(|m| Error::invalid_value(name, last, m));
         }
+        // Positional fallback only applies to non-option names. A schema
+        // that declares both `argument("config")` and `option("--config")`
+        // must not let a missing option be silently satisfied by the
+        // positional's value.
+        if name.starts_with('-') {
+            return Ok(None);
+        }
         if let Some(raw) = self.args.get(&key) {
             return T::from_arg(raw)
                 .map(Some)
@@ -97,14 +104,19 @@ impl ParseResult {
             .map(|(n, r)| (n.as_str(), r.as_ref()))
     }
 
-    /// Raw access for advanced callers.
+    /// Raw access for advanced callers. Follows the same option/positional
+    /// split as [`ParseResult::get`]: dash-prefixed names only look at
+    /// option values; non-dash names look at options first, then
+    /// positionals.
     pub fn raw_value(&self, name: &str) -> Option<&str> {
         let key = self.canonical_key(name);
-        self.values
-            .get(&key)
-            .and_then(|v| v.last())
-            .map(String::as_str)
-            .or_else(|| self.args.get(&key).map(String::as_str))
+        if let Some(v) = self.values.get(&key).and_then(|v| v.last()) {
+            return Some(v.as_str());
+        }
+        if name.starts_with('-') {
+            return None;
+        }
+        self.args.get(&key).map(String::as_str)
     }
 }
 
@@ -378,6 +390,19 @@ mod tests {
         let schema = CommandSchema::new("app", "").argument("file", "input");
         let err = OptionParser::parse(&schema, &args(&[])).unwrap_err();
         assert!(matches!(err, Error::MissingArgument(ref n) if n == "file"));
+    }
+
+    #[test]
+    fn same_name_positional_does_not_satisfy_missing_option() {
+        // A schema with both a positional and an option of the same
+        // canonical name must keep the two lookups independent — a missing
+        // option should not be answered by the positional's value.
+        let schema = CommandSchema::new("app", "")
+            .argument("config", "positional config")
+            .option("--config", "option config");
+        let r = OptionParser::parse(&schema, &args(&["prod.toml"])).unwrap();
+        assert_eq!(r.require::<String>("config").unwrap(), "prod.toml");
+        assert!(r.get::<String>("--config").unwrap().is_none());
     }
 
     #[test]

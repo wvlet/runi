@@ -1,5 +1,10 @@
 # Introduction
 
+[![crates.io](https://img.shields.io/crates/v/runi-core.svg?label=runi-core)](https://crates.io/crates/runi-core)
+[![docs.rs](https://docs.rs/runi-core/badge.svg)](https://docs.rs/runi-core)
+[![CI](https://github.com/wvlet/runi/actions/workflows/test.yml/badge.svg)](https://github.com/wvlet/runi/actions/workflows/test.yml)
+[![license](https://img.shields.io/crates/l/runi-core.svg)](https://github.com/wvlet/runi/blob/main/LICENSE)
+
 **Runi** is a collection of small, composable Rust libraries for building
 reliable infrastructure and CLI tools. Each crate is scoped to a single
 concern and can be used on its own or combined with the rest of the set.

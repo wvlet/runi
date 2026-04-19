@@ -14,6 +14,10 @@ Crates (unified version via `workspace.package.version`):
 - **runi-cli** — terminal styling and CLI launcher (with `derive` feature)
 - **runi-cli-macros** — proc-macros for `runi-cli`'s `#[derive(Command)]`
 
+## API design
+
+Optimize for the smallest mental model the caller needs before they can use a module. Provide sensible defaults, expose a narrow public surface, and let advanced configuration live behind builders or feature flags rather than required arguments. A new user should be able to reach for the obvious entry point and have it work.
+
 ## Commands
 
 ```bash

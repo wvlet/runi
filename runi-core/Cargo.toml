@@ -5,12 +5,19 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Core types for the Runi library collection"
-keywords = ["core", "types", "library", "foundation"]
+description = "Runi core library — foundation types plus a feature-gated bundle that re-exports runi-log and runi-cli"
+keywords = ["runi", "core", "foundation", "logging", "cli"]
 categories = ["rust-patterns"]
 
 [dependencies]
 thiserror.workspace = true
+runi-log = { workspace = true, optional = true }
+runi-cli = { workspace = true, optional = true }
+
+[features]
+default = ["log"]
+log = ["dep:runi-log"]
+cli = ["dep:runi-cli"]
 
 [dev-dependencies]
 runi-test.workspace = true

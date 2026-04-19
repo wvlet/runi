@@ -6,10 +6,14 @@ concern and can be used on its own or combined with the rest of the set.
 
 | Crate                           | Purpose                                                   |
 | ------------------------------- | --------------------------------------------------------- |
-| [`runi-core`](./crates/runi-core.md) | Shared error, result, and configuration types        |
+| [`runi-core`](./crates/runi-core.md) | Foundation types + feature-gated bundle that re-exports the rest |
 | [`runi-log`](./crates/runi-log.md)   | Structured logging with a Uni-style terminal format  |
 | [`runi-cli`](./crates/runi-cli.md)   | Terminal color detection and `Tint` styling helpers  |
 | [`runi-test`](./crates/runi-test.md) | Test utilities: `rstest`, `pretty_assertions`, `proptest` |
+
+Most callers depend on `runi-core` with the `package = "runi-core"`
+alias so they can write `use runi::…` at the call site. See the
+[runi-core page](./crates/runi-core.md) for the full pattern.
 
 ## What this book covers
 

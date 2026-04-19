@@ -11,9 +11,25 @@ concern and can be used on its own or combined with the rest of the set.
 | [`runi-cli`](./crates/runi-cli.md)   | Terminal color detection and `Tint` styling helpers  |
 | [`runi-test`](./crates/runi-test.md) | Test utilities: `rstest`, `pretty_assertions`, `proptest` |
 
-Most callers depend on `runi-core` with the `package = "runi-core"`
-alias so they can write `use runi::…` at the call site. See the
-[runi-core page](./crates/runi-core.md) for the full pattern.
+## Quick install
+
+```toml
+# Cargo.toml
+[dependencies]
+runi = { package = "runi-core", version = "0.1" }
+
+[dev-dependencies]
+runi-test = "0.1"
+```
+
+```rust,ignore
+use runi::{Error, Result};
+use runi::log;
+```
+
+The `package = "runi-core"` alias lets you write `use runi::…` at the
+call site even though the crate ships as `runi-core` on crates.io.
+The [`runi-core` page](./crates/runi-core.md) has the full details.
 
 ## What this book covers
 

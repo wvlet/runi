@@ -19,21 +19,6 @@ runi-test = "0.1"
 `runi-test` stays out of the bundle because it's a development-only
 helper.
 
-### Narrower dependencies
-
-Opt out of the default bundle to get only the foundation types, or a
-subset:
-
-```toml
-runi = { package = "runi-core", version = "0.1", default-features = false }                     # foundation only
-runi = { package = "runi-core", version = "0.1", default-features = false, features = ["log"] } # + one sub-crate
-```
-
-You can also depend on any sub-crate directly (`runi-log`, `runi-cli`,
-…) — they're independent and live on crates.io as standalone crates.
-All `runi-*` crates share a single workspace version, so pin them to
-the same version.
-
 ## A minimal example
 
 ```rust,ignore

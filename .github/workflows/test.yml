@@ -48,8 +48,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      - name: Check formatting
+      - name: Check Rust formatting
         run: cargo fmt --all -- --check
+      - name: Install taplo
+        uses: taiki-e/install-action@v2
+        with:
+          tool: taplo-cli
+      - name: Check TOML formatting
+        run: taplo fmt --check --diff
   clippy:
     name: Clippy
     needs: changes

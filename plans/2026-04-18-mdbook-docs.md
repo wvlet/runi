@@ -98,16 +98,19 @@ the PR description so the maintainer can flip it on.
 ## Required-CI gating
 
 Our existing `test.yml` uses `dorny/paths-filter` so `test`, `fmt`, and
-`clippy` are skipped on doc-only PRs. A **skipped** job does not satisfy
-a required status check, so branch protection must require a single
-aggregator job instead. This PR adds `ci-required` to `test.yml`:
+`clippy` are skipped on doc-only PRs. The new `docs.yml` does the same
+for `build` on code-only PRs. A **skipped** job does not satisfy a
+required status check, so branch protection must require one aggregator
+per workflow. This PR adds:
 
-- Always runs (`if: always()`)
-- Depends on all other jobs
-- Fails only if a dependency failed or was cancelled; skipped counts as
-  success
+- `CI Required` in `test.yml` — depends on `changes`, `test`, `fmt`,
+  `clippy`.
+- `Docs Required` in `docs.yml` — depends on `changes`, `build`.
 
-After merge, change branch protection to require only `ci-required`.
+Both use `if: always()` and GitHub's `contains(needs.*.result, …)` to
+fail only when a dependency *failed* or was *cancelled* (skipped
+counts as success). After merge, branch protection must require **both**
+aggregators.
 
 ## Risks / open questions
 

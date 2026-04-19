@@ -70,9 +70,16 @@ jobs:
     needs: [changes, test, fmt, clippy]
     runs-on: ubuntu-latest
     steps:
-      - name: Verify no job failed
+      - name: Verify no job failed or was cancelled
+        env:
+          NEEDS: ${{ toJSON(needs) }}
         run: |
-          results='${{ toJSON(needs) }}'
-          echo "$results"
-          if echo "$results" | grep -q '"result": "failure"'; then exit 1; fi
-          if echo "$results" | grep -q '"result": "cancelled"'; then exit 1; fi
+          echo "$NEEDS"
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "::error::A required job failed"
+            exit 1
+          fi
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "::error::A required job was cancelled"
+            exit 1
+          fi

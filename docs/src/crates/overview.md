@@ -23,15 +23,16 @@ full alias pattern.
 
 ## How they fit together
 
-- `runi-core` re-exports `runi-log` (default) and `runi-cli` (opt-in)
-  behind its `log` / `cli` features. Its own `Error`, `Result`,
-  `Config`, and `str_util` are always available.
-- `runi-log` and `runi-cli` are independent leaves — they share
-  `nu-ansi-term` for ANSI styling but do not depend on each other or
-  on `runi-core`.
-- `runi-test` is a `dev-dependencies`-only helper; it re-exports
-  `rstest`, `pretty_assertions`, and (behind the `property` feature)
-  `proptest`.
+- `runi-core` carries the foundation types (`Error`, `Result`,
+  `Config`, `str_util`) and bundles every other workspace sub-crate
+  behind a feature flag of the same name. All bundled features are on
+  by default. The canonical list of bundled features lives on the
+  [`runi-core` page](./runi-core.md).
+- The bundled sub-crates are independent leaves — they don't depend on
+  `runi-core` or on each other, so picking individual crates directly
+  is always an option.
+- `runi-test` is a `dev-dependencies`-only helper and is **not** part
+  of the bundle. Depend on it directly in your `[dev-dependencies]`.
 
 ## Versioning
 

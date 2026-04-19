@@ -16,21 +16,20 @@ of the set.
 
 ## Quick start
 
-Most callers only need `runi-core` — it re-exports the others behind
-feature flags. Cargo's `package = "..."` alias lets you reach
-everything through the clean `runi::` namespace:
+Most callers only need `runi-core` — it bundles the other workspace
+sub-crates behind feature flags, with every bundled sub-crate enabled
+by default. Cargo's `package = "..."` alias lets you reach everything
+through the clean `runi::` namespace:
 
 ```toml
 [dependencies]
-runi = { package = "runi-core", version = "0.1" }                           # + logging (default)
-runi = { package = "runi-core", version = "0.1", features = ["cli"] }      # + CLI helpers
-runi = { package = "runi-core", version = "0.1", default-features = false } # foundation only
+runi = { package = "runi-core", version = "0.1" }                             # everything bundled
+runi = { package = "runi-core", version = "0.1", default-features = false }   # foundation only
 ```
 
 ```rust
 use runi::{Error, Result};
-use runi::log;
-use runi::cli::Tint;
+use runi::log;  // any bundled sub-crate is re-exported as a module
 
 fn main() -> Result<()> {
     log::init();
@@ -39,16 +38,16 @@ fn main() -> Result<()> {
 }
 ```
 
+See the [book] for the full feature list and per-sub-crate guides.
 Each sub-crate is also published standalone on crates.io if you
 prefer narrower dependencies.
+
+[book]: https://wvlet.github.io/runi
 
 ## Documentation
 
 - Book: <https://wvlet.github.io/runi>
-- API reference: [docs.rs/runi-core](https://docs.rs/runi-core),
-  [docs.rs/runi-log](https://docs.rs/runi-log),
-  [docs.rs/runi-cli](https://docs.rs/runi-cli),
-  [docs.rs/runi-test](https://docs.rs/runi-test)
+- API reference per crate: <https://docs.rs/runi-core> (and each sibling crate)
 
 ## License
 

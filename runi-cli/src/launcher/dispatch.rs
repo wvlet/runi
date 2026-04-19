@@ -183,7 +183,8 @@ fn report_error(err: Error, root: &CommandSchema) -> i32 {
             0
         }
         Error::InSubcommand { path, source } => {
-            let schema = resolve_schema(root, &path).unwrap_or(root);
+            let composed = compose_help_schema(root, &path);
+            let schema = composed.as_ref().unwrap_or(root);
             match *source {
                 Error::HelpRequested => {
                     HelpPrinter::print(schema);
@@ -204,12 +205,24 @@ fn report_error(err: Error, root: &CommandSchema) -> i32 {
     }
 }
 
-fn resolve_schema<'a>(root: &'a CommandSchema, path: &[String]) -> Option<&'a CommandSchema> {
+/// Build a help-only schema that represents `root ... path` as a single
+/// command, so the usage line reads e.g. `git clone [OPTIONS] <url>` and
+/// includes the root's global options alongside the subcommand's own. The
+/// returned schema is only suitable for help printing — it is not used for
+/// parsing.
+fn compose_help_schema(root: &CommandSchema, path: &[String]) -> Option<CommandSchema> {
+    let mut options = root.options.clone();
     let mut schema = root;
+    let mut parts = vec![root.name.clone()];
     for name in path {
         schema = schema.subcommands.iter().find(|s| s.name == *name)?;
+        options.extend(schema.options.iter().cloned());
+        parts.push(name.clone());
     }
-    Some(schema)
+    let mut composed = schema.clone();
+    composed.name = parts.join(" ");
+    composed.options = options;
+    Some(composed)
 }
 
 fn env_args() -> Vec<String> {
@@ -447,6 +460,21 @@ mod tests {
             }
             other => panic!("expected InSubcommand, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn compose_help_schema_prefixes_root_name_and_options() {
+        let root = CommandSchema::new("git", "").flag("-v,--verbose", "Verbose");
+        let sub = CommandSchema::new("clone", "Clone a repo").argument("url", "URL");
+        let mut with_sub = root.clone();
+        with_sub.subcommands.push(sub);
+        let composed =
+            compose_help_schema(&with_sub, &["clone".to_string()]).expect("must resolve");
+        assert_eq!(composed.name, "git clone");
+        // Root's --verbose must appear alongside clone's own options.
+        assert!(composed.options.iter().any(|o| o.matches_long("verbose")));
+        // Clone's own positional must be preserved.
+        assert!(composed.arguments.iter().any(|a| a.name == "url"));
     }
 
     #[test]

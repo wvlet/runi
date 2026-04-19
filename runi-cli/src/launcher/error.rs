@@ -10,6 +10,10 @@ pub enum Error {
     },
     MissingValue(String),
     UnexpectedValue(String),
+    /// A required option was not provided at all (distinct from
+    /// `MissingValue`, which fires when the option name was typed without a
+    /// following value).
+    MissingOption(String),
     MissingArgument(String),
     MissingSubcommand {
         available: Vec<String>,
@@ -59,6 +63,7 @@ impl Error {
                 | Error::UnknownSubcommand { .. }
                 | Error::MissingValue(_)
                 | Error::UnexpectedValue(_)
+                | Error::MissingOption(_)
                 | Error::MissingArgument(_)
                 | Error::MissingSubcommand { .. }
                 | Error::ExtraArgument(_)
@@ -82,6 +87,7 @@ impl fmt::Display for Error {
             }
             Error::MissingValue(opt) => write!(f, "missing value for option: {opt}"),
             Error::UnexpectedValue(opt) => write!(f, "option {opt} does not take a value"),
+            Error::MissingOption(name) => write!(f, "missing required option: {name}"),
             Error::MissingArgument(name) => write!(f, "missing required argument: <{name}>"),
             Error::MissingSubcommand { available } => {
                 write!(f, "a subcommand is required")?;

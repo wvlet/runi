@@ -64,9 +64,20 @@ impl ParseResult {
     }
 
     /// Like [`ParseResult::get`] but errors if the value is missing.
+    ///
+    /// The error variant depends on the name shape: dash-prefixed names
+    /// (e.g. `--num`, `-n`) become `MissingOption`, everything else becomes
+    /// `MissingArgument`. That way a command that marks an option as
+    /// required via `require::<T>("--num")` gets a diagnostic mentioning
+    /// the option, not a positional argument.
     pub fn require<T: FromArg>(&self, name: &str) -> Result<T> {
-        self.get::<T>(name)?
-            .ok_or_else(|| Error::MissingArgument(name.to_string()))
+        self.get::<T>(name)?.ok_or_else(|| {
+            if name.starts_with('-') {
+                Error::MissingOption(name.to_string())
+            } else {
+                Error::MissingArgument(name.to_string())
+            }
+        })
     }
 
     /// Get all values supplied for a repeatable option.
@@ -344,6 +355,23 @@ mod tests {
     fn required_argument_reported_when_missing() {
         let schema = CommandSchema::new("app", "").argument("file", "input");
         let err = OptionParser::parse(&schema, &args(&[])).unwrap_err();
+        assert!(matches!(err, Error::MissingArgument(ref n) if n == "file"));
+    }
+
+    #[test]
+    fn require_on_missing_option_reports_missing_option() {
+        let schema = CommandSchema::new("app", "").option("--num", "");
+        let r = OptionParser::parse(&schema, &args(&[])).unwrap();
+        let err = r.require::<u32>("--num").unwrap_err();
+        assert!(matches!(err, Error::MissingOption(ref n) if n == "--num"));
+    }
+
+    #[test]
+    fn require_on_missing_positional_reports_missing_argument() {
+        // Mirror of the above: positional uses MissingArgument.
+        let schema = CommandSchema::new("app", "").optional_argument("file", "");
+        let r = OptionParser::parse(&schema, &args(&[])).unwrap();
+        let err = r.require::<String>("file").unwrap_err();
         assert!(matches!(err, Error::MissingArgument(ref n) if n == "file"));
     }
 

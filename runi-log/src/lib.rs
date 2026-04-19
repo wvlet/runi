@@ -25,7 +25,11 @@ pub fn init_with_env(env_var: &str) {
     if is_terminal {
         tracing_subscriber::registry()
             .with(filter)
-            .with(fmt::layer().event_format(UniFormatter::new(true)))
+            .with(
+                fmt::layer()
+                    .with_writer(std::io::stderr)
+                    .event_format(UniFormatter::new(true)),
+            )
             .init();
     } else {
         tracing_subscriber::registry()
@@ -33,6 +37,7 @@ pub fn init_with_env(env_var: &str) {
             .with(
                 fmt::layer()
                     .json()
+                    .with_writer(std::io::stderr)
                     .with_target(true)
                     .with_file(true)
                     .with_line_number(true),
@@ -46,7 +51,11 @@ pub fn init_with_level(level: &str) {
     let filter = EnvFilter::new(level);
     tracing_subscriber::registry()
         .with(filter)
-        .with(fmt::layer().event_format(UniFormatter::new(true)))
+        .with(
+            fmt::layer()
+                .with_writer(std::io::stderr)
+                .event_format(UniFormatter::new(true)),
+        )
         .init();
 }
 

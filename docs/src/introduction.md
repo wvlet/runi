@@ -9,7 +9,7 @@ concern and can be used on its own or combined with the rest of the set.
 | [`runi-core`](./crates/runi-core.md) | Shared error, result, and configuration types        |
 | [`runi-log`](./crates/runi-log.md)   | Structured logging with a Uni-style terminal format  |
 | [`runi-cli`](./crates/runi-cli.md)   | Terminal color detection and `Tint` styling helpers  |
-| [`runi-test`](./crates/runi-test.md) | Test utilities: `rstest`, `pretty_assertions`, proptest |
+| [`runi-test`](./crates/runi-test.md) | Test utilities: `rstest`, `pretty_assertions`, `proptest` |
 
 ## What this book covers
 

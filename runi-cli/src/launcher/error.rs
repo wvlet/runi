@@ -22,6 +22,13 @@ pub enum Error {
     },
     /// Sentinel used internally when the user passes `-h`/`--help`.
     HelpRequested,
+    /// Wraps an error produced while parsing a subcommand so the launcher can
+    /// print the right (sub)command help. `path` is the chain from the root
+    /// schema to the failing subcommand, newest-last.
+    InSubcommand {
+        path: Vec<String>,
+        source: Box<Error>,
+    },
     Custom(String),
 }
 
@@ -73,6 +80,9 @@ impl fmt::Display for Error {
                 write!(f, "invalid value '{value}' for {name}: {message}")
             }
             Error::HelpRequested => write!(f, "help requested"),
+            Error::InSubcommand { path, source } => {
+                write!(f, "in subcommand '{}': {}", path.join(" "), source)
+            }
             Error::Custom(msg) => write!(f, "{msg}"),
         }
     }

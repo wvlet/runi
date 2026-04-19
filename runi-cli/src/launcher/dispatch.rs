@@ -76,15 +76,7 @@ impl<G: Command + 'static> Launcher<G> {
                     1
                 }
             },
-            Err(Error::HelpRequested) => {
-                HelpPrinter::print(&schema);
-                0
-            }
-            Err(e) => {
-                eprintln!("error: {e}");
-                HelpPrinter::print(&schema);
-                2
-            }
+            Err(e) => report_error(e, &schema),
         };
         process::exit(code);
     }
@@ -149,24 +141,56 @@ impl<G: Command + 'static> LauncherWithSubs<G> {
 
     /// Parse `std::env::args()`, dispatch to the matching subcommand, and
     /// exit. Prints help on `--help` and error messages to stderr before
-    /// exiting.
+    /// exiting. When a subcommand parse fails, prints help for that
+    /// subcommand rather than for the root command.
     pub fn execute(self) -> ! {
         let args = env_args();
         let schema = self.combined_schema();
         let code = match self.run_args(&args) {
             Ok(()) => 0,
-            Err(Error::HelpRequested) => {
-                HelpPrinter::print(&schema);
-                0
-            }
-            Err(e) => {
-                eprintln!("error: {e}");
-                HelpPrinter::print(&schema);
-                2
-            }
+            Err(err) => report_error(err, &schema),
         };
         process::exit(code);
     }
+}
+
+/// Print a parse error with the most specific help schema available and
+/// return the exit code to use. `HelpRequested` is not an error to the user,
+/// so it exits 0.
+fn report_error(err: Error, root: &CommandSchema) -> i32 {
+    match err {
+        Error::HelpRequested => {
+            HelpPrinter::print(root);
+            0
+        }
+        Error::InSubcommand { path, source } => {
+            let schema = resolve_schema(root, &path).unwrap_or(root);
+            match *source {
+                Error::HelpRequested => {
+                    HelpPrinter::print(schema);
+                    0
+                }
+                inner => {
+                    eprintln!("error: {inner}");
+                    HelpPrinter::print(schema);
+                    2
+                }
+            }
+        }
+        other => {
+            eprintln!("error: {other}");
+            HelpPrinter::print(root);
+            2
+        }
+    }
+}
+
+fn resolve_schema<'a>(root: &'a CommandSchema, path: &[String]) -> Option<&'a CommandSchema> {
+    let mut schema = root;
+    for name in path {
+        schema = schema.subcommands.iter().find(|s| s.name == *name)?;
+    }
+    Some(schema)
 }
 
 fn env_args() -> Vec<String> {

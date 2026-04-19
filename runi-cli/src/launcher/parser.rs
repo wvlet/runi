@@ -153,12 +153,34 @@ impl OptionParser {
                 continue;
             }
 
-            // Subcommand name or positional.
+            // Positional args on the parent schema always bind first. This
+            // makes `app <workspace> <subcommand>`-style schemas unambiguous:
+            // a schema's declared positionals are filled in order before any
+            // token is considered as a subcommand name.
+            if positional_idx < schema.arguments.len() {
+                consume_positional(&mut result, schema, &mut positional_idx, arg)?;
+                i += 1;
+                continue;
+            }
+
             if !schema.subcommands.is_empty() {
                 if let Some(sub) = schema.find_subcommand(arg) {
-                    let sub_result = OptionParser::parse(sub, &args[i + 1..])?;
-                    result.subcommand = Some((sub.name.clone(), Box::new(sub_result)));
-                    return finalize(result, schema);
+                    match OptionParser::parse(sub, &args[i + 1..]) {
+                        Ok(sub_result) => {
+                            result.subcommand = Some((sub.name.clone(), Box::new(sub_result)));
+                            return finalize(result, schema);
+                        }
+                        Err(Error::InSubcommand { mut path, source }) => {
+                            path.insert(0, sub.name.clone());
+                            return Err(Error::InSubcommand { path, source });
+                        }
+                        Err(e) => {
+                            return Err(Error::InSubcommand {
+                                path: vec![sub.name.clone()],
+                                source: Box::new(e),
+                            });
+                        }
+                    }
                 }
                 return Err(Error::UnknownSubcommand {
                     name: arg.clone(),
@@ -166,8 +188,7 @@ impl OptionParser {
                 });
             }
 
-            consume_positional(&mut result, schema, &mut positional_idx, arg)?;
-            i += 1;
+            return Err(Error::ExtraArgument(arg.clone()));
         }
 
         finalize(result, schema)
@@ -345,6 +366,48 @@ mod tests {
         assert_eq!(name, "clone");
         assert_eq!(sub_r.require::<u32>("--depth").unwrap(), 1);
         assert_eq!(sub_r.require::<String>("url").unwrap(), "https://x");
+    }
+
+    #[test]
+    fn subcommand_error_carries_context() {
+        let sub = CommandSchema::new("clone", "").option("--depth", "");
+        let schema = CommandSchema::new("git", "").subcommand(sub);
+        // Unknown option inside the subcommand should surface with path info so
+        // the launcher can print the subcommand's help rather than the root.
+        let err = OptionParser::parse(&schema, &args(&["clone", "--bad"])).unwrap_err();
+        match err {
+            Error::InSubcommand { path, source } => {
+                assert_eq!(path, vec!["clone".to_string()]);
+                assert!(matches!(*source, Error::UnknownOption(_)));
+            }
+            other => panic!("unexpected: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn subcommand_help_carries_context() {
+        let sub = CommandSchema::new("clone", "").option("--depth", "");
+        let schema = CommandSchema::new("git", "").subcommand(sub);
+        let err = OptionParser::parse(&schema, &args(&["clone", "--help"])).unwrap_err();
+        match err {
+            Error::InSubcommand { path, source } => {
+                assert_eq!(path, vec!["clone".to_string()]);
+                assert!(matches!(*source, Error::HelpRequested));
+            }
+            other => panic!("unexpected: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn positional_consumed_before_subcommand() {
+        let sub = CommandSchema::new("run", "");
+        let schema = CommandSchema::new("app", "")
+            .argument("workspace", "workspace name")
+            .subcommand(sub);
+        let r = OptionParser::parse(&schema, &args(&["myws", "run"])).unwrap();
+        assert_eq!(r.require::<String>("workspace").unwrap(), "myws");
+        let (name, _) = r.subcommand().unwrap();
+        assert_eq!(name, "run");
     }
 
     #[test]

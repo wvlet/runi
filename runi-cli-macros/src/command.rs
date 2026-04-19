@@ -616,15 +616,14 @@ fn first_generic_arg(ty: &Type) -> Option<Type> {
 }
 
 /// Reject prefixes the parser can never match. A valid prefix is a
-/// comma-separated list where each part is either `-<alpha>…` (short)
-/// or `--<alpha>…` (long). Anything else (empty, wrong dash count,
-/// leading digit) becomes a runtime dead option, so surface it at
-/// derive time.
+/// comma-separated list with at most one short (`-<alpha>…`) and at most
+/// one long (`--<alpha>…`). The runtime's `split_prefix` would silently
+/// drop extras, so surface the mistake at derive time instead.
 fn validate_option_prefix(prefix: &LitStr) -> Result<()> {
     let value = prefix.value();
-    let mut saw_any = false;
+    let mut short_seen: Option<String> = None;
+    let mut long_seen: Option<String> = None;
     for part in value.split(',').map(str::trim).filter(|s| !s.is_empty()) {
-        saw_any = true;
         if let Some(rest) = part.strip_prefix("--") {
             if rest.starts_with('-') {
                 return Err(syn::Error::new_spanned(
@@ -639,6 +638,15 @@ fn validate_option_prefix(prefix: &LitStr) -> Result<()> {
                     format!("long option '{part}' must start with a letter"),
                 ));
             }
+            if let Some(prev) = &long_seen {
+                return Err(syn::Error::new_spanned(
+                    prefix,
+                    format!(
+                        "option prefix has multiple long forms ('{prev}' and '{part}'); only one is supported",
+                    ),
+                ));
+            }
+            long_seen = Some(part.to_string());
         } else if let Some(rest) = part.strip_prefix('-') {
             let first = rest.chars().next();
             if !first.map(|c| c.is_ascii_alphabetic()).unwrap_or(false) {
@@ -647,6 +655,15 @@ fn validate_option_prefix(prefix: &LitStr) -> Result<()> {
                     format!("short option '{part}' must start with a letter"),
                 ));
             }
+            if let Some(prev) = &short_seen {
+                return Err(syn::Error::new_spanned(
+                    prefix,
+                    format!(
+                        "option prefix has multiple short forms ('{prev}' and '{part}'); only one is supported",
+                    ),
+                ));
+            }
+            short_seen = Some(part.to_string());
         } else {
             return Err(syn::Error::new_spanned(
                 prefix,
@@ -654,7 +671,7 @@ fn validate_option_prefix(prefix: &LitStr) -> Result<()> {
             ));
         }
     }
-    if !saw_any {
+    if short_seen.is_none() && long_seen.is_none() {
         return Err(syn::Error::new_spanned(
             prefix,
             "option prefix must contain at least one of -<short> or --<long>",

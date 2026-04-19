@@ -6,6 +6,9 @@ resolver = "2"
 version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
+authors = ["Taro L. Saito <leo@xerial.org>"]
+repository = "https://github.com/wvlet/runi"
+homepage = "https://github.com/wvlet/runi"
 
 [workspace.dependencies]
 runi-cli = { path = "runi-cli", version = "0.1.0" }

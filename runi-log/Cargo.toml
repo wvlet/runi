@@ -3,7 +3,12 @@ name = "runi-log"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
 description = "Structured logging for the Runi library collection"
+keywords = ["logging", "tracing", "structured-logging", "log"]
+categories = ["development-tools::debugging"]
 
 [dependencies]
 tracing.workspace = true

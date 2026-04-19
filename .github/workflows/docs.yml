@@ -18,6 +18,7 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pull-requests: read
     outputs:
       docs: ${{ steps.filter.outputs.docs }}
@@ -34,7 +35,7 @@ jobs:
   build:
     name: Build
     needs: changes
-    if: ${{ needs.changes.outputs.docs == 'true' }}
+    if: ${{ needs.changes.outputs.docs == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -53,7 +54,9 @@ jobs:
       - name: Test book
         run: mdbook test docs
       - name: Upload Pages artifact
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: >
+          (github.event_name == 'push' && github.ref == 'refs/heads/main')
+          || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs/book
@@ -77,7 +80,9 @@ jobs:
 
   deploy:
     name: Deploy
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.docs == 'true'
+    if: >
+      (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.docs == 'true')
+      || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     needs: [changes, build]
     runs-on: ubuntu-latest
     permissions:

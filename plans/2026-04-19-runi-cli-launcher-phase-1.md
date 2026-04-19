@@ -40,4 +40,48 @@ Add `src/launcher/` to `runi-cli` with:
 
 ## Notes / Learnings (filled during PR cycle)
 
-- _(update after review feedback)_
+The PR went through ~11 codex-review rounds. Real design decisions that
+emerged during iteration:
+
+- **Parent-first positional binding.** A schema with both positionals and
+  subcommands is supported; required positionals bind before any
+  subcommand dispatch. For optional positionals, a token that matches a
+  registered subcommand name dispatches first — use `--` to force a
+  subcommand-named string into the positional slot. Required parent
+  positionals are always validated, even when a subcommand dispatched.
+
+- **Dash-prefixed positional values.** `-1`, `-.5`, `-/path` bind as
+  positional values (short-option heuristic: only `-<letter>`/`--<word>`
+  is an option). Arbitrary dash-prefixed strings also work as option
+  values, except that the *known* next option on the same schema or the
+  built-in `-h`/`--help` are rejected as probable typos.
+
+- **Error classification.** Parse-origin failures print help
+  (`HelpPrinter::print_error` on stderr, exit code 2). Runtime failures
+  from `SubCommandOf::run` are wrapped in `Error::Runtime` by the
+  registered runner so the launcher can tell them apart, even when user
+  code reuses parse-origin variants (`MissingArgument`, `InvalidValue`)
+  for its own validation. `--help` output goes to stdout with an
+  explicit flush.
+
+- **Subcommand context propagation.** Parser wraps subcommand failures
+  in `Error::InSubcommand { path, source }`. The launcher resolves the
+  path to compose a help schema that includes the root name, ancestor
+  positionals, and merged options — so `git clone --help` prints
+  `Usage: git clone [OPTIONS] <url>` rather than root help.
+
+- **Fail loudly on programmer mistakes.** Duplicate subcommand names,
+  subcommands declared directly on `G::schema()` (either mode),
+  conflicting subcommand names between schema and launcher, and option
+  prefixes without any short/long alias all panic at startup. These
+  would otherwise produce silently-wrong runtime behavior.
+
+- **Option lookups stay separate from positionals.** `get::<T>("--x")`
+  never falls back to the positional `x`. A schema with both
+  `argument("config")` and `option("--config")` keeps the two lookups
+  independent.
+
+- **Color detection per stream.** `supports_color()` checks stderr;
+  new `supports_color_stdout()` checks stdout. `HelpPrinter::print`
+  uses the stdout check so `cmd --help > file` produces plain output
+  even when stderr is a TTY.

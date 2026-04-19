@@ -22,9 +22,8 @@ everything through the clean `runi::` namespace:
 
 ```toml
 [dependencies]
-runi = { package = "runi-core", version = "0.1" }                           # + logging (default)
-runi = { package = "runi-core", version = "0.1", features = ["cli"] }      # + CLI helpers
-runi = { package = "runi-core", version = "0.1", default-features = false } # foundation only
+runi = { package = "runi-core", version = "0.1" }                             # everything (log + cli)
+runi = { package = "runi-core", version = "0.1", default-features = false }   # foundation only
 ```
 
 ```rust

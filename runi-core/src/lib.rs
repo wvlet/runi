@@ -15,9 +15,9 @@
 //!
 //! ```toml
 //! [dependencies]
-//! runi = { package = "runi-core", version = "0.1" }                          # + logging (default)
-//! runi = { package = "runi-core", version = "0.1", features = ["cli"] }     # + cli helpers
+//! runi = { package = "runi-core", version = "0.1" }                            # everything (log + cli)
 //! runi = { package = "runi-core", version = "0.1", default-features = false } # foundation only
+//! runi = { package = "runi-core", version = "0.1", default-features = false, features = ["log"] } # foundation + logging only
 //! ```
 //!
 //! ```ignore
@@ -34,7 +34,11 @@
 //! - [`runi_log`] is re-exported as [`log`] when the `log` feature is
 //!   enabled (on by default).
 //! - [`runi_cli`] is re-exported as [`cli`] when the `cli` feature is
-//!   enabled.
+//!   enabled (on by default).
+//!
+//! `runi-test` stays out of the bundle because it's a
+//! `dev-dependencies`-only helper; depend on `runi-test` directly in
+//! your `[dev-dependencies]`.
 //!
 //! The bundle role follows the pattern from
 //! [`wvlet/uni`](https://github.com/wvlet/uni).

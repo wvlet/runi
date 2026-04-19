@@ -25,7 +25,7 @@ Then in your code:
 ```rust,ignore
 use runi::{Error, Result};
 use runi::log;           // re-exported runi-log
-use runi::cli::Tint;     // re-exported runi-cli (behind the `cli` feature)
+use runi::cli::Tint;     // re-exported runi-cli
 ```
 
 This is the same pattern `async-std`, `http-body-util`, and many other
@@ -38,13 +38,18 @@ skip the alias, depend on `runi-core` directly and import as
 | Feature | Default | Pulls in    |
 | ------- | ------- | ----------- |
 | `log`   | yes     | `runi-log`  |
-| `cli`   | no      | `runi-cli`  |
+| `cli`   | yes     | `runi-cli`  |
 
-Opt out of defaults to pick only the foundation types:
+`runi-test` is not part of the bundle — it's a `dev-dependencies`-only
+helper, so depend on it directly in your `[dev-dependencies]`.
+
+Opt out of defaults to pick only the foundation types, or a narrower
+subset:
 
 ```toml
 [dependencies]
-runi = { package = "runi-core", version = "0.1", default-features = false }
+runi = { package = "runi-core", version = "0.1", default-features = false }                   # foundation only
+runi = { package = "runi-core", version = "0.1", default-features = false, features = ["log"] } # + logging
 ```
 
 ## What's in it
@@ -56,10 +61,10 @@ runi = { package = "runi-core", version = "0.1", default-features = false }
 - `Config` — a small configuration helper.
 - `str_util` — convenience string helpers.
 
-**Re-exports** — gated by features.
+**Re-exports** — included by default, feature-gated so you can opt out.
 
-- `runi_core::log` = [`runi-log`](./runi-log.md) (`log` feature, on by default)
-- `runi_core::cli` = [`runi-cli`](./runi-cli.md) (`cli` feature)
+- `runi_core::log` = [`runi-log`](./runi-log.md) (`log` feature, default)
+- `runi_core::cli` = [`runi-cli`](./runi-cli.md) (`cli` feature, default)
 
 ## Example
 

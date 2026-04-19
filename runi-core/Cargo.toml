@@ -15,7 +15,7 @@ runi-log = { workspace = true, optional = true }
 runi-cli = { workspace = true, optional = true }
 
 [features]
-default = ["log"]
+default = ["log", "cli"]
 log = ["dep:runi-log"]
 cli = ["dep:runi-cli"]
 

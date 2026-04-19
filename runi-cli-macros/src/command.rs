@@ -50,6 +50,7 @@ fn derive_struct(input: &DeriveInput, data: &DataStruct) -> Result<TokenStream> 
                 &name,
                 &description,
                 &[],
+                true,
             ));
         }
         Fields::Unnamed(_) => {
@@ -74,6 +75,7 @@ fn derive_struct(input: &DeriveInput, data: &DataStruct) -> Result<TokenStream> 
         &name,
         &description,
         &collected,
+        false,
     ))
 }
 
@@ -87,10 +89,22 @@ fn emit_struct_impl(
     name: &str,
     description: &str,
     fields: &[FieldSpec],
+    is_unit: bool,
 ) -> TokenStream {
     let _ = input; // reserved for future use
     let schema_stmts = fields.iter().map(FieldSpec::schema_stmt);
     let ctor_stmts = fields.iter().map(FieldSpec::ctor_stmt);
+    // `Self {}` with an empty brace list is invalid Rust for unit structs —
+    // emit the bare `Self` constructor in that case.
+    let ctor_expr = if is_unit {
+        quote! { ::core::result::Result::Ok(Self) }
+    } else {
+        quote! {
+            ::core::result::Result::Ok(Self {
+                #( #ctor_stmts, )*
+            })
+        }
+    };
 
     quote! {
         impl #impl_generics ::runi_cli::Command for #struct_ident #ty_generics #where_clause {
@@ -103,9 +117,7 @@ fn emit_struct_impl(
             fn from_parsed(
                 p: &::runi_cli::ParseResult,
             ) -> ::runi_cli::Result<Self> {
-                ::core::result::Result::Ok(Self {
-                    #( #ctor_stmts, )*
-                })
+                #ctor_expr
             }
         }
     }
@@ -117,6 +129,7 @@ fn emit_struct_impl(
 
 fn derive_enum(input: &DeriveInput, data: &DataEnum) -> Result<TokenStream> {
     let enum_ident = &input.ident;
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
     let cmd_attrs = CommandAttrs::from_attrs(&input.attrs)?;
     if cmd_attrs.description.is_some() || cmd_attrs.name.is_some() {
         // Enum-level name/description is accepted but intentionally unused —
@@ -144,21 +157,23 @@ fn derive_enum(input: &DeriveInput, data: &DataEnum) -> Result<TokenStream> {
     let parent_bounds = variants.iter().map(|v| {
         let inner = &v.inner_ty;
         quote! {
-            #inner: ::runi_cli::Command + ::runi_cli::SubCommandOf<G> + 'static,
+            #inner: ::runi_cli::Command + ::runi_cli::SubCommandOf<__RegG> + 'static,
         }
     });
 
+    // Generic parameter for the parent launcher is named __RegG to avoid
+    // clashing with any user-declared generics on the enum itself.
     Ok(quote! {
-        impl #enum_ident {
+        impl #impl_generics #enum_ident #ty_generics #where_clause {
             /// Register each variant as a subcommand on the given launcher.
             ///
             /// The variant's inner type must implement
             /// `::runi_cli::Command` and `::runi_cli::SubCommandOf<G>`.
-            pub fn register_on<G>(
-                launcher: ::runi_cli::Launcher<G>,
-            ) -> ::runi_cli::LauncherWithSubs<G>
+            pub fn register_on<__RegG>(
+                launcher: ::runi_cli::Launcher<__RegG>,
+            ) -> ::runi_cli::LauncherWithSubs<__RegG>
             where
-                G: ::runi_cli::Command + 'static,
+                __RegG: ::runi_cli::Command + 'static,
                 #( #parent_bounds )*
             {
                 launcher #( #registration_body )*
@@ -445,6 +460,16 @@ fn field_kind_from_attrs(attrs: &[Attribute]) -> Result<FieldKind> {
                 Ok(prefix)
             };
             let prefix = attr.parse_args_with(parser)?;
+            // Validate at macro-expansion time so misconfigurations point
+            // at the attribute rather than panicking inside the generated
+            // `schema()` call at runtime.
+            let (short, long) = split_prefix(&prefix.value());
+            if short.is_none() && long.is_none() {
+                return Err(syn::Error::new_spanned(
+                    &prefix,
+                    "option prefix must contain at least one of -<short> or --<long>",
+                ));
+            }
             found = Some(FieldKind::Option { prefix });
         } else if attr.path().is_ident("argument") {
             if found.is_some() {

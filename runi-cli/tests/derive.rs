@@ -318,3 +318,55 @@ fn derived_missing_required_reports_error() {
     let err = launcher.parse(&args(&["--loud"])).unwrap_err();
     assert!(matches!(err, Error::MissingArgument(ref n) if n == "target"));
 }
+
+// ---------------------------------------------------------------------------
+// Unit struct: schema with no options/arguments.
+// ---------------------------------------------------------------------------
+
+/// Just respond that the server is alive.
+#[derive(CommandDerive)]
+#[command(name = "ping")]
+struct Ping;
+
+impl Runnable for Ping {
+    fn run(&self) -> Result<()> {
+        Ok(())
+    }
+}
+
+#[test]
+fn unit_struct_derive() {
+    let schema = <Ping as runi_cli::Command>::schema();
+    assert_eq!(schema.name, "ping");
+    assert!(schema.options.is_empty());
+    assert!(schema.arguments.is_empty());
+    let parsed = OptionParser::parse(&schema, &args(&[])).unwrap();
+    let _: Ping = <Ping as runi_cli::Command>::from_parsed(&parsed).unwrap();
+}
+
+// ---------------------------------------------------------------------------
+// Generic enum: register_on must preserve enum generics.
+// ---------------------------------------------------------------------------
+
+// The generic parameter `T` is phantom — no variant touches it. This
+// verifies the derive threads the impl-level generics through to the
+// generated `impl GenericSub<T> { ... }` block. Without generics
+// propagation this stops compiling with "expected type parameters".
+#[derive(CommandDerive)]
+enum GenericSub<T>
+where
+    T: std::marker::Sized,
+{
+    Init(InitCmd),
+    Clone(CloneCmd),
+    #[allow(dead_code)]
+    Phantom(std::marker::PhantomData<T>),
+}
+
+#[test]
+fn generic_enum_register_on_compiles() {
+    // Don't call register_on (the Phantom variant's inner type doesn't
+    // implement Command, so the method isn't callable) — the derive is
+    // validated by successful compilation of the impl block.
+    let _ = std::marker::PhantomData::<GenericSub<()>>;
+}

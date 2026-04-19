@@ -60,16 +60,21 @@ impl<G: Command + 'static> Launcher<G> {
         G::from_parsed(&parsed)
     }
 
-    /// Parse `std::env::args()`, run `G::run`, and exit. Prints help on
-    /// `--help` and error messages to stderr before exiting.
+    /// Parse `std::env::args()`, run `G::run`, and exit. Parse-origin
+    /// failures (including those from `G::from_parsed`, e.g. missing
+    /// required args, invalid typed values) route through the help printer
+    /// with exit code 2. Runtime failures from `G::run` exit with code 1
+    /// and no help banner.
     pub fn execute(self) -> !
     where
         G: Runnable,
     {
         let args = env_args();
         let schema = G::schema();
-        let code = match OptionParser::parse(&schema, &args) {
-            Ok(parsed) => match G::from_parsed(&parsed).and_then(|g| g.run()) {
+        let parse_result =
+            OptionParser::parse(&schema, &args).and_then(|parsed| G::from_parsed(&parsed));
+        let code = match parse_result {
+            Ok(g) => match g.run() {
                 Ok(()) => 0,
                 Err(e) => {
                     eprintln!("error: {e}");

@@ -1,5 +1,3 @@
 [workspace]
-members = [ "runi-cli",
-    "runi-core", "runi-log", "runi-test",
-]
+members = ["runi-cli", "runi-core", "runi-log", "runi-test"]
 resolver = "2"

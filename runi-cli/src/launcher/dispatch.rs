@@ -131,20 +131,18 @@ impl<G: Command + 'static> LauncherWithSubs<G> {
 
     fn combined_schema(&self) -> CommandSchema {
         let mut schema = G::schema();
-        for entry in &self.subs {
-            // If G::schema() already declared a subcommand with this name,
-            // parsing would match the stub first and never reach the
-            // registered handler. That's a programmer error — fail loudly.
-            assert!(
-                !schema
-                    .subcommands
-                    .iter()
-                    .any(|s| s.name == entry.schema.name),
-                "subcommand '{}' is declared in both G::schema() and .command()",
-                entry.schema.name,
-            );
-            schema.subcommands.push(entry.schema.clone());
-        }
+        // A subcommand declared directly on G::schema() would not have a
+        // runner registered here, so if parsing matched it run_args would
+        // report `UnknownSubcommand` at dispatch time. Force users to
+        // register subcommands via Launcher::command() where a runner is
+        // always attached.
+        assert!(
+            schema.subcommands.is_empty(),
+            "G::schema() must not declare subcommands directly; register them via Launcher::command()",
+        );
+        schema
+            .subcommands
+            .extend(self.subs.iter().map(|e| e.schema.clone()));
         schema
     }
 
@@ -523,16 +521,17 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "declared in both G::schema()")]
-    fn subcommand_conflict_with_schema_declared_sub_panics() {
-        // combined_schema runs at parse time. We invoke it explicitly
-        // because just constructing the Launcher doesn't trigger it.
+    #[should_panic(expected = "G::schema() must not declare subcommands")]
+    fn schema_declared_subcommands_panic() {
+        // combined_schema runs at parse time. Declaring a subcommand
+        // directly on G::schema() is unsafe because no runner is
+        // registered for it — reject up front.
         let launcher = Launcher::<AppWithStubSub>::of().command::<CloneCmd>("clone");
         let _ = launcher.run_args(&["clone".into()]);
     }
 
     // Dummy SubCommandOf<AppWithStubSub> impl so the Launcher registration
-    // compiles; unused because the conflict panics first.
+    // compiles; the panic in combined_schema fires before dispatch.
     impl SubCommandOf<AppWithStubSub> for CloneCmd {
         fn run(&self, _: &AppWithStubSub) -> Result<()> {
             Ok(())

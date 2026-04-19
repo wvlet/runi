@@ -20,8 +20,13 @@ impl CLOption {
     ///
     /// Returns a `CLOption` with `takes_value == false` (i.e. a flag).
     /// Use [`CLOption::parse_option`] to build a value-consuming option.
+    ///
+    /// Panics if the prefix produces neither a short nor long alias (e.g.
+    /// `""` or `"verbose"` without a leading dash). Such an option can
+    /// never be matched by the parser and would collide with other
+    /// malformed options in the result map.
     pub fn parse_flag(prefix: &str, description: impl Into<String>) -> Self {
-        let (short, long) = split_prefix(prefix);
+        let (short, long) = require_aliases(prefix);
         Self {
             short,
             long,
@@ -33,7 +38,7 @@ impl CLOption {
 
     /// Like [`CLOption::parse_flag`] but the option consumes the next argument.
     pub fn parse_option(prefix: &str, description: impl Into<String>) -> Self {
-        let (short, long) = split_prefix(prefix);
+        let (short, long) = require_aliases(prefix);
         Self {
             short,
             long,
@@ -81,6 +86,15 @@ fn split_prefix(prefix: &str) -> (Option<String>, Option<String>) {
             short = Some(part.to_string());
         }
     }
+    (short, long)
+}
+
+fn require_aliases(prefix: &str) -> (Option<String>, Option<String>) {
+    let (short, long) = split_prefix(prefix);
+    assert!(
+        short.is_some() || long.is_some(),
+        "option prefix '{prefix}' must contain at least one of -<short> or --<long>",
+    );
     (short, long)
 }
 
@@ -217,6 +231,18 @@ mod tests {
         assert!(opt.matches_long("verbose"));
         assert!(opt.matches_short("v"));
         assert!(!opt.matches_long("v"));
+    }
+
+    #[test]
+    #[should_panic(expected = "option prefix 'verbose' must contain at least one of")]
+    fn option_prefix_without_dashes_panics() {
+        let _ = CLOption::parse_flag("verbose", "");
+    }
+
+    #[test]
+    #[should_panic(expected = "option prefix '' must contain at least one of")]
+    fn empty_option_prefix_panics() {
+        let _ = CLOption::parse_option("", "");
     }
 
     #[test]

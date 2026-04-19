@@ -32,8 +32,11 @@ jobs:
               sleep 20
             fi
           }
+          # Publish order is dependency-driven: runi-core now has
+          # optional deps on runi-log and runi-cli, so those must be on
+          # crates.io before runi-core can resolve its manifest.
           publish runi-test
-          publish runi-core
           publish runi-log
           publish runi-cli-macros
           publish runi-cli
+          publish runi-core

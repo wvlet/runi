@@ -59,20 +59,21 @@ impl HelpPrinter {
 }
 
 fn usage_line(schema: &CommandSchema) -> String {
-    let mut parts: Vec<String> = Vec::new();
-    parts.push(schema.name.clone());
+    let mut parts: Vec<String> = vec![schema.name.clone()];
     if !schema.options.is_empty() {
         parts.push("[OPTIONS]".to_string());
     }
-    if !schema.subcommands.is_empty() {
-        parts.push("<COMMAND>".to_string());
-    }
+    // Match the parser: positionals bind before subcommand dispatch, so the
+    // usage line must present them in the same order the user types them.
     for arg in &schema.arguments {
         if arg.required {
             parts.push(format!("<{}>", arg.name));
         } else {
             parts.push(format!("[{}]", arg.name));
         }
+    }
+    if !schema.subcommands.is_empty() {
+        parts.push("<COMMAND>".to_string());
     }
     parts.join(" ")
 }
@@ -212,6 +213,14 @@ mod tests {
             .flag("-v,--verbose", "")
             .argument("file", "");
         assert_eq!(usage_line(&s), "app [OPTIONS] <file>");
+    }
+
+    #[test]
+    fn usage_line_puts_positionals_before_subcommand() {
+        let s = CommandSchema::new("app", "")
+            .argument("workspace", "")
+            .subcommand(CommandSchema::new("run", ""));
+        assert_eq!(usage_line(&s), "app <workspace> <COMMAND>");
     }
 
     #[test]

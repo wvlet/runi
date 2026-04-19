@@ -153,16 +153,23 @@ impl OptionParser {
                 continue;
             }
 
-            // Positional args on the parent schema always bind first. This
-            // makes `app <workspace> <subcommand>`-style schemas unambiguous:
-            // a schema's declared positionals are filled in order before any
-            // token is considered as a subcommand name.
-            if positional_idx < schema.arguments.len() {
+            // Bind required positionals before considering subcommand
+            // dispatch — `app <workspace> <sub>`-style schemas need the
+            // workspace to bind first even when the workspace value happens
+            // to match a subcommand name.
+            let next_positional = schema.arguments.get(positional_idx);
+            let next_is_required = next_positional.map(|a| a.required).unwrap_or(false);
+
+            if next_is_required {
                 consume_positional(&mut result, schema, &mut positional_idx, arg)?;
                 i += 1;
                 continue;
             }
 
+            // For optional positionals, a token that matches a known
+            // subcommand dispatches first; otherwise it fills the optional
+            // slot. Users can force a subcommand-named string into the
+            // positional slot with `--`.
             if !schema.subcommands.is_empty() {
                 if let Some(sub) = schema.find_subcommand(arg) {
                     match OptionParser::parse(sub, &args[i + 1..]) {
@@ -182,6 +189,15 @@ impl OptionParser {
                         }
                     }
                 }
+            }
+
+            if next_positional.is_some() {
+                consume_positional(&mut result, schema, &mut positional_idx, arg)?;
+                i += 1;
+                continue;
+            }
+
+            if !schema.subcommands.is_empty() {
                 return Err(Error::UnknownSubcommand {
                     name: arg.clone(),
                     available: schema.subcommands.iter().map(|s| s.name.clone()).collect(),
@@ -408,6 +424,44 @@ mod tests {
         assert_eq!(r.require::<String>("workspace").unwrap(), "myws");
         let (name, _) = r.subcommand().unwrap();
         assert_eq!(name, "run");
+    }
+
+    #[test]
+    fn subcommand_wins_over_optional_positional() {
+        let sub = CommandSchema::new("run", "");
+        let schema = CommandSchema::new("app", "")
+            .optional_argument("out", "output")
+            .subcommand(sub);
+        let r = OptionParser::parse(&schema, &args(&["run"])).unwrap();
+        assert!(r.get::<String>("out").unwrap().is_none());
+        let (name, _) = r.subcommand().unwrap();
+        assert_eq!(name, "run");
+    }
+
+    #[test]
+    fn optional_positional_consumed_when_not_a_subcommand_name() {
+        let sub = CommandSchema::new("run", "");
+        let schema = CommandSchema::new("app", "")
+            .optional_argument("out", "output")
+            .subcommand(sub);
+        let r = OptionParser::parse(&schema, &args(&["out.txt", "run"])).unwrap();
+        assert_eq!(r.get::<String>("out").unwrap().as_deref(), Some("out.txt"));
+        let (name, _) = r.subcommand().unwrap();
+        assert_eq!(name, "run");
+    }
+
+    #[test]
+    fn dash_dash_forces_positional_even_if_name_matches_subcommand() {
+        let sub = CommandSchema::new("run", "");
+        let schema = CommandSchema::new("app", "")
+            .optional_argument("out", "output")
+            .subcommand(sub);
+        // After `--`, the token `run` binds to the positional slot rather
+        // than dispatching to the `run` subcommand.
+        let err = OptionParser::parse(&schema, &args(&["--", "run"])).unwrap_err();
+        // Without a real subcommand token, the launcher reports a missing
+        // subcommand — not a subcommand dispatch to `run`.
+        assert!(matches!(err, Error::MissingSubcommand { .. }));
     }
 
     #[test]

@@ -33,21 +33,9 @@ mdbook serve docs                       # Local docs preview
 - Use `gh` for PR management.
 - Never enable auto-merge without explicit user approval. When approved: `gh pr merge --squash --auto`.
 
-### Branch prefixes → PR labels
+### Branch prefixes
 
-Branch prefixes drive automatic PR labels via `.github/labeler.yml`, which in turn drive the changelog categories in `.github/release.yml` for `gh release create --generate-notes`.
-
-| Prefix       | Label            | Release section          |
-|--------------|------------------|--------------------------|
-| `breaking/`  | `breaking`       | 🔥 Breaking Changes      |
-| `feature/`   | `feature`        | 🚀 Features              |
-| `fix/`       | `bug`            | 🐛 Bug Fixes             |
-| `chore/`     | `internal`       | 🛠 Internal Updates      |
-| `test/`      | `internal`       | 🛠 Internal Updates      |
-| `deps/`      | `library-update` | 🔗 Dependency Updates    |
-| `docs/`      | `doc`            | 📚 Docs                  |
-
-PRs without one of these prefixes still appear in the release notes under "Other Changes". Dependabot PRs come pre-labeled with `dependencies` and slot into the dependency section automatically.
+`breaking/`, `feature/`, `fix/`, `chore/`, `test/`, `deps/`, `docs/`. These drive PR labels and release-note grouping; see `.github/labeler.yml` and `.github/release.yml`.
 
 ## Release process
 
@@ -56,5 +44,3 @@ Tag-driven, automated by `.github/workflows/release.yml` and `release-note.yml`:
 1. Bump `[workspace.package].version` (and matching `workspace.dependencies` versions) in the root `Cargo.toml`; merge the bump PR.
 2. `git tag vX.Y.Z origin/main && git push origin vX.Y.Z`.
 3. The release workflow publishes all five crates to crates.io in dependency order; the release-note workflow creates a GitHub release with auto-generated notes grouped by label.
-
-`CARGO_REGISTRY_TOKEN` must be set in repo secrets.

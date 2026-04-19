@@ -35,4 +35,5 @@ jobs:
           publish runi-test
           publish runi-core
           publish runi-log
+          publish runi-cli-macros
           publish runi-cli

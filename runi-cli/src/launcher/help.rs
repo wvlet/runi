@@ -52,8 +52,15 @@ impl HelpPrinter {
         out
     }
 
-    /// Print help text to stderr.
+    /// Print help text to stdout. Use this for user-requested help
+    /// (`--help`) so output can be piped or redirected normally.
     pub fn print(schema: &CommandSchema) {
+        print!("{}", Self::format(schema));
+    }
+
+    /// Print help text to stderr. Use this alongside an error message so
+    /// both are grouped on the same stream.
+    pub fn print_error(schema: &CommandSchema) {
         eprint!("{}", Self::format(schema));
     }
 }

@@ -104,6 +104,13 @@ impl<G: Command + 'static> LauncherWithSubs<G> {
     where
         S: Command + SubCommandOf<G> + 'static,
     {
+        // Silently accepting a duplicate would make later registrations
+        // unreachable because parsing stops at the first match. That's a
+        // programmer error — fail loudly at startup.
+        assert!(
+            !self.subs.iter().any(|e| e.schema.name == name),
+            "duplicate subcommand name: {name}",
+        );
         let mut schema = S::schema();
         schema.name = name.to_string();
         let name_owned = schema.name.clone();
@@ -192,14 +199,14 @@ fn report_error(err: Error, root: &CommandSchema) -> i32 {
                 }
                 inner => {
                     eprintln!("error: {inner}");
-                    HelpPrinter::print(schema);
+                    HelpPrinter::print_error(schema);
                     2
                 }
             }
         }
         other => {
             eprintln!("error: {other}");
-            HelpPrinter::print(root);
+            HelpPrinter::print_error(root);
             2
         }
     }
@@ -484,6 +491,14 @@ mod tests {
             }
             other => panic!("expected InSubcommand, got {other:?}"),
         }
+    }
+
+    #[test]
+    #[should_panic(expected = "duplicate subcommand name: clone")]
+    fn duplicate_subcommand_registration_panics() {
+        let _ = Launcher::<GitApp>::of()
+            .command::<CloneCmd>("clone")
+            .command::<CloneCmd>("clone");
     }
 
     #[test]

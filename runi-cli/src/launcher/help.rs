@@ -30,27 +30,35 @@ impl HelpPrinter {
         if !schema.arguments.is_empty() {
             out.push_str(&bold("Arguments:", color));
             out.push('\n');
-            for arg in &schema.arguments {
-                format_argument(&mut out, arg, color);
-            }
+            let rows: Vec<Row> = schema
+                .arguments
+                .iter()
+                .map(|a| argument_row(a, color))
+                .collect();
+            write_rows(&mut out, &rows);
             out.push('\n');
         }
 
         out.push_str(&bold("Options:", color));
         out.push('\n');
-        for opt in &schema.options {
-            format_option(&mut out, opt, color);
-        }
-        out.push_str(&format_help_line(color));
-        out.push('\n');
+        let mut option_rows: Vec<Row> = schema
+            .options
+            .iter()
+            .map(|o| option_row(o, color))
+            .collect();
+        option_rows.push(help_row(color));
+        write_rows(&mut out, &option_rows);
 
         if !schema.subcommands.is_empty() {
             out.push('\n');
             out.push_str(&bold("Subcommands:", color));
             out.push('\n');
-            for sub in &schema.subcommands {
-                format_subcommand(&mut out, sub, color);
-            }
+            let rows: Vec<Row> = schema
+                .subcommands
+                .iter()
+                .map(|s| subcommand_row(s, color))
+                .collect();
+            write_rows(&mut out, &rows);
         }
 
         out
@@ -102,7 +110,17 @@ fn usage_line(schema: &CommandSchema) -> String {
     parts.join(" ")
 }
 
-fn format_option(out: &mut String, opt: &CLOption, color: bool) {
+/// One formatted row (argument, option, subcommand, or the `-h, --help`
+/// line). `head_plain` is kept alongside the styled `head` so the layout
+/// pass can align columns on visible width — ANSI escape sequences in
+/// `head` would otherwise inflate `.chars().count()`.
+struct Row {
+    head_plain: String,
+    head: String,
+    description: String,
+}
+
+fn option_row(opt: &CLOption, color: bool) -> Row {
     let mut head = String::new();
     match (&opt.short, &opt.long) {
         (Some(s), Some(l)) => {
@@ -120,71 +138,79 @@ fn format_option(out: &mut String, opt: &CLOption, color: bool) {
     if opt.takes_value {
         head.push_str(&format!(" <{}>", opt.value_name));
     }
-    let head = if color {
-        Tint::cyan().paint(&head)
-    } else {
-        head
-    };
-    out.push_str("  ");
-    out.push_str(&head);
-    if !opt.description.is_empty() {
-        pad_to(out, 4);
-        out.push_str(&dim(&opt.description, color));
+    Row {
+        head_plain: head.clone(),
+        head: if color {
+            Tint::cyan().paint(&head)
+        } else {
+            head
+        },
+        description: dim(&opt.description, color),
     }
-    out.push('\n');
 }
 
-fn format_argument(out: &mut String, arg: &CLArgument, color: bool) {
-    let display = if arg.required {
+fn argument_row(arg: &CLArgument, color: bool) -> Row {
+    let head_plain = if arg.required {
         format!("<{}>", arg.name)
     } else {
         format!("[{}]", arg.name)
     };
-    let head = if color {
-        Tint::green().paint(&display)
-    } else {
-        display
-    };
-    out.push_str("  ");
-    out.push_str(&head);
-    if !arg.description.is_empty() {
-        pad_to(out, 4);
-        out.push_str(&dim(&arg.description, color));
+    Row {
+        head: if color {
+            Tint::green().paint(&head_plain)
+        } else {
+            head_plain.clone()
+        },
+        head_plain,
+        description: dim(&arg.description, color),
     }
-    out.push('\n');
 }
 
-fn format_subcommand(out: &mut String, sub: &CommandSchema, color: bool) {
-    let head = if color {
-        Tint::cyan().paint(&sub.name)
-    } else {
-        sub.name.clone()
-    };
-    out.push_str("  ");
-    out.push_str(&head);
-    if !sub.description.is_empty() {
-        pad_to(out, 4);
-        out.push_str(&dim(&sub.description, color));
+fn subcommand_row(sub: &CommandSchema, color: bool) -> Row {
+    Row {
+        head_plain: sub.name.clone(),
+        head: if color {
+            Tint::cyan().paint(&sub.name)
+        } else {
+            sub.name.clone()
+        },
+        description: dim(&sub.description, color),
     }
-    out.push('\n');
 }
 
-fn format_help_line(color: bool) -> String {
-    let head = "-h, --help";
-    let head = if color {
-        Tint::cyan().paint(head)
-    } else {
-        head.to_string()
-    };
-    let mut line = format!("  {head}");
-    pad_to(&mut line, 4);
-    line.push_str(&dim("Show this help message", color));
-    line
+fn help_row(color: bool) -> Row {
+    let head_plain = "-h, --help".to_string();
+    Row {
+        head: if color {
+            Tint::cyan().paint(&head_plain)
+        } else {
+            head_plain.clone()
+        },
+        head_plain,
+        description: dim("Show this help message", color),
+    }
 }
 
-fn pad_to(out: &mut String, spaces: usize) {
-    for _ in 0..spaces {
-        out.push(' ');
+/// Align descriptions by padding each `head` to the longest plain-width in
+/// the section, plus a 4-space gutter. Rows without descriptions are
+/// emitted unpadded.
+fn write_rows(out: &mut String, rows: &[Row]) {
+    let max_head = rows
+        .iter()
+        .map(|r| r.head_plain.chars().count())
+        .max()
+        .unwrap_or(0);
+    for row in rows {
+        out.push_str("  ");
+        out.push_str(&row.head);
+        if !row.description.is_empty() {
+            let pad = max_head.saturating_sub(row.head_plain.chars().count()) + 4;
+            for _ in 0..pad {
+                out.push(' ');
+            }
+            out.push_str(&row.description);
+        }
+        out.push('\n');
     }
 }
 
@@ -237,6 +263,27 @@ mod tests {
             .flag("-v,--verbose", "")
             .argument("file", "");
         assert_eq!(usage_line(&s), "app [OPTIONS] <file>");
+    }
+
+    #[test]
+    fn options_descriptions_are_column_aligned() {
+        // Different head widths must produce the same description column.
+        let s = CommandSchema::new("app", "")
+            .flag("-v,--verbose", "Verbose output")
+            .option("-n,--count", "Count");
+        let out = no_ansi(&HelpPrinter::format(&s));
+        // Find the start column of each description.
+        let verbose_col = out.find("Verbose output").unwrap();
+        let count_col = out.find("Count").unwrap();
+        // Each line starts at column 0 after a newline; compute offset on
+        // its own line.
+        let verbose_line = out[..verbose_col].rfind('\n').map(|i| i + 1).unwrap_or(0);
+        let count_line = out[..count_col].rfind('\n').map(|i| i + 1).unwrap_or(0);
+        assert_eq!(
+            verbose_col - verbose_line,
+            count_col - count_line,
+            "option descriptions must start in the same column"
+        );
     }
 
     #[test]

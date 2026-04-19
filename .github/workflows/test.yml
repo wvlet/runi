@@ -11,6 +11,7 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pull-requests: read
     outputs:
       src: ${{ steps.filter.outputs.src }}
@@ -69,3 +70,23 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
+
+  ci-required:
+    name: CI Required
+    if: always()
+    needs: [changes, test, fmt, clippy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify no job failed or was cancelled
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS"
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "::error::A required job failed"
+            exit 1
+          fi
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "::error::A required job was cancelled"
+            exit 1
+          fi

@@ -24,8 +24,12 @@ fn main() {
 The default format looks like:
 
 ```text
-2026-04-18T23:12:04 INFO  [my_app] request received - (src/main.rs:8)
+2026-04-18 23:12:04.123-0700  INFO [my_app] request received - (main.rs:8)
 ```
+
+The timestamp is local time with millisecond precision and timezone offset,
+the level is right-padded to 5 characters, and the `target` is reduced to its
+leaf segment (so `my_app::api` becomes `api` in the brackets).
 
 ## Controlling log level
 

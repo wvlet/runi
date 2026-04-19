@@ -44,6 +44,7 @@ guides and examples.
 - Custom theme / branding
 - Search tuning, analytics
 - Versioned docs
+- Compile-checked examples (see "Known limitations" below)
 
 ## Layout
 
@@ -80,6 +81,33 @@ the PR description so the maintainer can flip it on.
 - `mdbook test docs` passes (catches broken links in code fences)
 - `cargo fmt --all -- --check` and `cargo clippy --workspace` still pass
   (unchanged — no Rust code touched)
+
+## Known limitations
+
+- **Code snippets are `ignore`d, not compile-checked.** Making
+  `mdbook test` compile snippets that use the workspace crates requires
+  passing `--extern NAME=path` to rustdoc for each crate (a `-L` search
+  path alone is not enough). The clean options are:
+  1. generate `--extern` args dynamically and pass via
+     `RUSTDOCFLAGS` / a wrapper, or
+  2. move the canonical examples into a real Rust file under one of the
+     crates and use mdBook's `{{#rustdoc_include}}` to pull them in.
+  Option 2 is preferred long-term because it keeps examples compile-
+  tested through `cargo test --workspace`. Tracked as a follow-up PR.
+
+## Required-CI gating
+
+Our existing `test.yml` uses `dorny/paths-filter` so `test`, `fmt`, and
+`clippy` are skipped on doc-only PRs. A **skipped** job does not satisfy
+a required status check, so branch protection must require a single
+aggregator job instead. This PR adds `ci-required` to `test.yml`:
+
+- Always runs (`if: always()`)
+- Depends on all other jobs
+- Fails only if a dependency failed or was cancelled; skipped counts as
+  success
+
+After merge, change branch protection to require only `ci-required`.
 
 ## Risks / open questions
 

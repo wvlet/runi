@@ -21,8 +21,8 @@ fn main() {
 
 ## What's included
 
-- Foreground and background colors (basic + bright)
-- ANSI 256-color and 24-bit RGB support
+- Foreground colors (basic + bright) and basic backgrounds
+- ANSI 256-color and 24-bit RGB support (foreground + background)
 - Chainable style modifiers: `bold`, `italic`, `underline`, `dimmed`,
   `strikethrough`
 - A `supports_color()` helper that returns `true` when stderr is a

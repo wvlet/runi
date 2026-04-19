@@ -63,3 +63,16 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
+
+  ci-required:
+    name: CI Required
+    if: always()
+    needs: [changes, test, fmt, clippy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify no job failed
+        run: |
+          results='${{ toJSON(needs) }}'
+          echo "$results"
+          if echo "$results" | grep -q '"result": "failure"'; then exit 1; fi
+          if echo "$results" | grep -q '"result": "cancelled"'; then exit 1; fi

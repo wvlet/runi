@@ -33,6 +33,13 @@ pub enum Error {
         path: Vec<String>,
         source: Box<Error>,
     },
+    /// Wraps an error returned by a subcommand's `run` method. The launcher
+    /// uses this to distinguish user runtime failures from parse-origin
+    /// errors. It matters because `SubCommandOf::run` may legitimately
+    /// reuse parse-origin variants (e.g. `MissingArgument`) for its own
+    /// post-parse validation, so variant-based classification alone is
+    /// not enough.
+    Runtime(Box<Error>),
     Custom(String),
 }
 
@@ -108,6 +115,7 @@ impl fmt::Display for Error {
             Error::InSubcommand { path, source } => {
                 write!(f, "in subcommand '{}': {}", path.join(" "), source)
             }
+            Error::Runtime(inner) => write!(f, "{inner}"),
             Error::Custom(msg) => write!(f, "{msg}"),
         }
     }

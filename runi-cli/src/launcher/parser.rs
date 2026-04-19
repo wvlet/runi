@@ -322,19 +322,21 @@ fn consume_positional(
 }
 
 fn finalize(result: ParseResult, schema: &CommandSchema) -> Result<ParseResult> {
-    // Skip validation when a subcommand took over — positional args belong to
-    // the subcommand, not the parent.
-    if result.subcommand.is_some() {
-        return Ok(result);
-    }
-
+    // Parent positionals belong to the parent and must be satisfied even
+    // when a subcommand took over — a schema like
+    // `[optional, required, <subcommand>]` otherwise lets the subcommand
+    // dispatch over the optional before the required positional was bound.
     for arg in &schema.arguments {
         if arg.required && !result.args.contains_key(&arg.name) {
             return Err(Error::MissingArgument(arg.name.clone()));
         }
     }
 
-    if !schema.subcommands.is_empty() && result.subcommand.is_none() {
+    if result.subcommand.is_some() {
+        return Ok(result);
+    }
+
+    if !schema.subcommands.is_empty() {
         return Err(Error::MissingSubcommand {
             available: schema.subcommands.iter().map(|s| s.name.clone()).collect(),
         });
@@ -491,6 +493,20 @@ mod tests {
         assert_eq!(r.require::<String>("workspace").unwrap(), "myws");
         let (name, _) = r.subcommand().unwrap();
         assert_eq!(name, "run");
+    }
+
+    #[test]
+    fn required_parent_positional_enforced_after_subcommand_dispatch() {
+        // `[optional, required, <sub>]` — if the user types just the sub
+        // name, the required positional was never bound. The parser must
+        // still report it missing rather than silently accept.
+        let sub = CommandSchema::new("run", "");
+        let schema = CommandSchema::new("app", "")
+            .optional_argument("out", "")
+            .argument("must", "")
+            .subcommand(sub);
+        let err = OptionParser::parse(&schema, &args(&["run"])).unwrap_err();
+        assert!(matches!(err, Error::MissingArgument(ref n) if n == "must"));
     }
 
     #[test]

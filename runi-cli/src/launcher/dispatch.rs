@@ -115,15 +115,17 @@ impl<G: Command + 'static> LauncherWithSubs<G> {
         schema.name = name.to_string();
         let name_owned = schema.name.clone();
         let runner: Runner<G> = Box::new(move |global, parsed| {
-            // Wrap parse-origin failures (e.g., missing required argument)
-            // with subcommand context so the launcher prints help for the
-            // right command. The subcommand's own runtime errors pass
-            // through unwrapped and are treated as runtime failures.
+            // S::from_parsed failures are parse-origin — wrap them with
+            // subcommand context so the launcher picks the right help.
+            // S::run failures are runtime — wrap them in Error::Runtime so
+            // the launcher can tell them apart from parse variants even
+            // when user code reuses e.g. MissingArgument for its own
+            // validation.
             let sub = S::from_parsed(parsed).map_err(|e| Error::InSubcommand {
                 path: vec![name_owned.clone()],
                 source: Box::new(e),
             })?;
-            sub.run(global)
+            sub.run(global).map_err(|e| Error::Runtime(Box::new(e)))
         });
         self.subs.push(Entry { schema, runner });
         self
@@ -170,20 +172,22 @@ impl<G: Command + 'static> LauncherWithSubs<G> {
 
     /// Parse `std::env::args()`, dispatch to the matching subcommand, and
     /// exit. Prints help on `--help` and parse error messages to stderr
-    /// before exiting. When the subcommand's own `run` returns an error,
-    /// that is treated as a runtime failure (exit code 1) without printing
-    /// help, so legitimate runtime errors aren't reported as bad CLI
-    /// syntax.
+    /// before exiting. When the subcommand's own `run` returns an error
+    /// (wrapped in `Error::Runtime` by the registered runner), that is
+    /// treated as a runtime failure (exit code 1) without printing help,
+    /// so legitimate runtime errors aren't reported as bad CLI syntax —
+    /// even when the subcommand reuses parse-origin `Error` variants for
+    /// its own post-parse validation.
     pub fn execute(self) -> ! {
         let args = env_args();
         let schema = self.combined_schema();
         let code = match self.run_args(&args) {
             Ok(()) => 0,
-            Err(e) if e.is_parse_error() => report_error(e, &schema),
-            Err(e) => {
-                eprintln!("error: {e}");
+            Err(Error::Runtime(inner)) => {
+                eprintln!("error: {inner}");
                 1
             }
+            Err(e) => report_error(e, &schema),
         };
         process::exit(code);
     }
@@ -459,7 +463,45 @@ mod tests {
         let launcher = Launcher::<GitApp>::of().command::<FailingCmd>("fail");
         let err = launcher.run_args(&["fail".into()]).unwrap_err();
         assert!(!err.is_parse_error());
-        assert!(matches!(err, Error::Custom(_)));
+        // The runner wraps SubCommandOf::run errors in Error::Runtime so
+        // the launcher can tell them apart from parse-origin variants.
+        match err {
+            Error::Runtime(inner) => assert!(matches!(*inner, Error::Custom(_))),
+            other => panic!("expected Error::Runtime, got {other:?}"),
+        }
+    }
+
+    // Subcommand whose run() returns a parse-origin variant for its own
+    // validation, to confirm Error::Runtime wrapping classifies it as a
+    // runtime failure.
+    struct ValidatingCmd;
+    impl Command for ValidatingCmd {
+        fn schema() -> CommandSchema {
+            CommandSchema::new("validate", "")
+        }
+        fn from_parsed(_: &ParseResult) -> Result<Self> {
+            Ok(Self)
+        }
+    }
+    impl SubCommandOf<GitApp> for ValidatingCmd {
+        fn run(&self, _: &GitApp) -> Result<()> {
+            // User code legitimately uses a parse-origin variant for its
+            // own post-parse validation.
+            Err(Error::MissingArgument("config".into()))
+        }
+    }
+
+    #[test]
+    fn subcommand_run_returning_parse_variant_is_still_runtime() {
+        let launcher = Launcher::<GitApp>::of().command::<ValidatingCmd>("validate");
+        let err = launcher.run_args(&["validate".into()]).unwrap_err();
+        assert!(!err.is_parse_error());
+        match err {
+            Error::Runtime(inner) => {
+                assert!(matches!(*inner, Error::MissingArgument(_)));
+            }
+            other => panic!("expected Error::Runtime, got {other:?}"),
+        }
     }
 
     // Subcommand that requires an argument — exercises parse-error wrapping

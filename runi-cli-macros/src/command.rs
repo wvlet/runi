@@ -1,4 +1,9 @@
 //! Implementation of `#[derive(Command)]` for structs and enums.
+//
+// Clippy on Rust 1.95+ nudges nested `if let` toward let-chains, but we
+// still want to compile on older stable rustc where let-chains aren't
+// stable, so keep the classic nested form.
+#![allow(clippy::collapsible_if, clippy::collapsible_match)]
 
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote, quote_spanned};

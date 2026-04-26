@@ -22,7 +22,7 @@ pretty_assertions = "1"
 proc-macro2 = "1"
 proptest = "1"
 quote = "1"
-rstest = "0.25"
+rstest = "0.26"
 syn = { version = "2", features = ["full", "extra-traits"] }
 thiserror = "2"
 tracing = "0.1"

@@ -23,7 +23,7 @@ proc-macro2 = "1"
 proptest = "1"
 quote = "1"
 rstest = "0.25"
-syn = { version = "2", features = ["full", "extra-traits"] }
+syn = { version = "3", features = ["full", "extra-traits"] }
 thiserror = "2"
 tracing = "0.1"
 tracing-core = "0.1"
